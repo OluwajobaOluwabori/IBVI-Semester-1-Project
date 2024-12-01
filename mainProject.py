@@ -34,11 +34,10 @@ from matplotlib.figure import Figure
 import numpy as np
 from numpy import *
 from ProjectS1v1GUI import Ui_MainWindow
-from PeriodogramWindow import Ui_Form as Ui_FormPeriodogram
-from FFTWindow import Ui_Form as Ui_FormFFT
-# from RotateWindow import Ui_Form as Ui_FormRotate
-# from BrightnessWindow import Ui_Form as Ui_FormBright
-# from SaturationWindow import Ui_Form as Ui_FormSaturation
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate
+
+
 b_Canvas = False
 
 class MyMainWindow(QMainWindow, Ui_MainWindow):
@@ -62,6 +61,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
         # Link the clicked action from the button to a function to read excel file
         self.ui.LoadBtnsignal.clicked.connect(self.loadDatasignal)
+        self.ui.updateTimeButton.clicked.connect(self.plotSignal)
+        self.ui.windowDurationSlider.valueChanged.connect(self.updateSliderLabel)
+
         self.ui.WindowcomboBox.currentTextChanged.connect(self.plotSignal)
         self.ui.ScalingcomboBox.currentTextChanged.connect(self.plotSignal)
         self.ui.NormcomboBox.currentTextChanged.connect(self.plotSignal)
@@ -84,16 +86,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         # Force the focus on the first tab
         self.ui.tabWidget.setCurrentIndex(0)
 
-        # Link the clicked action from the button to a function to plot data
-        # self.ui.pbPlot.clicked.connect(self.plotData)
-        # self.ui.pbFFT.clicked.connect(self.showFFTWindow)
-        # self.ui.pbPeriodogram.clicked.connect(self.showPeriodogramWindow)
-
-
-        # Button can't be clicked because no reason to if Excel not yet loaded
-        # self.ui.pbPlot.setEnabled(False)
-        # self.ui.pbFFT.setEnabled(False)
-        # self.ui.pbPeriodogram.setEnabled(False)
 
         self.canvas = None
         self.toolbar = None
@@ -110,7 +102,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.stackedWidget.setCurrentIndex(1)
     def switch_to_SpectrumAnalysisPage(self):
         self.ui.stackedWidget.setCurrentIndex(2)
-        self.ui.LoadBtnsignal.clicked.connect(self.loadDatasignal)
+        # self.ui.LoadBtnsignal.clicked.connect(self.loadDatasignal)
         # self.ui.pbPeriodogram.clicked.connect(self.Periodogram)
     def switch_to_ImageProcessingPage(self):
         self.ui.stackedWidget.setCurrentIndex(3)
@@ -134,11 +126,19 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 self.signal = self.data.p_signal[:, 0]
                 self.data.fs = self.data.fs
                 self.data.n_sig = self.data.n_sig
+                duration = len(self.signal) / self.data.fs  # Duration in seconds
+                self.time = np.linspace(0, duration, len(self.signal))
+                mean_signal = np.mean(self.signal)
+                print(f'The average signal value is : {mean_signal:.2f}')
 
                 # Plot the loaded data and initial FFT and periodogram
                 self.plotSignal()
+                # Show success message box
+                QMessageBox.information(self, "Success", "Data successfully loaded!")
         except Exception as e:
             print(e)
+            QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
+
     def plotSignal(self):
             # Clear existing canvas and toolbar if they exist
             try:
@@ -151,11 +151,58 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                     layout.removeWidget(self.toolbar)
                     self.toolbar.deleteLater()
                     self.toolbar = None
+
+                # Determine start time and window duration
+                try:
+                    # Parse start time from QLineEdit (hh:mm:ss)
+                    start_time_str = self.ui.timeInput.text()
+                    if start_time_str:
+                        h, m, s = map(int, start_time_str.split(':'))
+                        start_time = h * 3600 + m * 60 + s  # Convert to seconds
+                    else:
+                        start_time = 0  # Default to 0 if no input is provided
+                except ValueError:
+                    QMessageBox.warning(self, "Invalid Input", "Please enter time in hh:mm:ss format.")
+                    return
+
+                # Get the window duration from QSlider (default: 5 seconds)
+                window_duration = self.ui.windowDurationSlider.value()
+
+                # Calculate start and end indices
+                start_index = int(start_time * self.data.fs)  # Sampling rate to index
+                end_index = start_index + int(window_duration * self.data.fs)
+
+                # Boundary checks
+                if start_index < 0 or end_index > len(self.signal):
+                    QMessageBox.warning(self, "Invalid Range", "The specified range is out of bounds.")
+                    return
+
+                # Extract the segment of the signal
+                segment = self.signal[start_index:end_index]
+                segment_time = self.time[start_index:end_index]
+
+                # Format time to hh:mm:ss for x-axis
+                formatted_time = [time.strftime("%H:%M:%S", time.gmtime(t)) for t in segment_time]
+
+                # Create subplots
                 fig, ax = plt.subplots(1, 3, figsize=(10, 5))  # Create one figure with 3 subplots
-                ax[0].plot(self.signal)
-                ax[0].set_title("Loaded Signal Data")
-                ax[0].set_xlabel("Samples")
-                ax[0].set_ylabel("Amplitude")
+
+                # Plot Signal
+                ax[0].plot(formatted_time, segment)
+                ax[0].set_title(f"Signal (Start: {start_time}s, Duration: {window_duration}s)")
+                ax[0].set_xlabel('Time (hh:mm:ss)')
+                ax[0].set_ylabel('Amplitude')
+                ax[0].tick_params(axis='x', rotation=45)  # Rotate x-axis labels for readability
+                # ax[0].xaxis.set_major_locator(plt.MaxNLocator(10))  # Adjust number of x-ticks
+                ax[0].xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+                ax[0].tick_params(axis='x', rotation=45)  # Rotate for readability
+                fig.autofmt_xdate()  # Auto-format the x-axis dates or time
+
+                # fig, ax = plt.subplots(1, 3, figsize=(10, 5))  # Create one figure with 3 subplots
+                # ax[0].plot(self.time, self.signal)
+                # ax[0].set_title("Loaded Signal Data")
+                # ax[0].set_xlabel('Time [s]')
+                # ax[0].set_ylabel("Amplitude")
                 # for tick in ax.xaxis.get_major_ticks():
                 #     tick.label.set_fontsize(18)  # Adjust the fontsize for x ticks
                 #
@@ -163,24 +210,17 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
 
 
-                # self.canvas = FigureCanvas(fig)
-                # layout = self.ui.mplwindow.layout()
-                # layout.addWidget(self.canvas)
-                # self.canvas.draw()
-                # self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow, coordinates=True)
-                # layout.addWidget(self.toolbar)
-
                 # Periodogram
                 scaling_value = self.ui.ScalingcomboBox.currentText()
                 window_value = self.ui.WindowcomboBox.currentText()
 
-                f, Pxx = periodogram(self.signal, fs=self.data.fs, scaling=scaling_value,
-                                     window=window_value)
+                # f, Pxx = periodogram(self.signal, fs=self.data.fs, scaling=scaling_value,
+                #                      window=window_value)
+                f, Pxx = periodogram(segment, fs=self.data.fs, scaling=scaling_value, window=window_value)
+
                 Pxx_dB = 10 * np.log10(Pxx)  # Convert power to dB
 
-                # Plot within Periodogramlabel using a FigureCanvas
-                # fig = Figure(figsize(6, 6))
-                # ax = fig.add_subplot(132)
+
                 ax[1].clear()
                 ax[1].plot(f, Pxx_dB)
                 ax[1].set_title(f'Periodogram of the Signal\n Window Type = {window_value}, Scaling = {scaling_value}'
@@ -195,21 +235,17 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 #
                 # for tick in ax.yaxis.get_major_ticks():
                 #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
-                # Embed the plot in the QLabel (Periodogramlabel)
-                # self.canvas = FigureCanvas(fig)
-                # layout = self.ui.mplwindow.layout()
-                # layout.addWidget(self.canvas)
-                # self.canvas.draw()
-                # self.ui.verticalLayout_5.addWidget(self.toolbar)
 
 
                 # FFT
                 # Get the selected window and scaling values
                 norm_value = self.ui.NormcomboBox.currentText()
                 # Step 1: Calculate the FFT
-                fft_values = np.fft.fft(self.signal, norm=norm_value)
-                # Step 2: Calculate the frequencies corresponding to the FFT values
-                n = len(self.signal)
+                fft_values = np.fft.fft(segment, norm=norm_value)
+                n = len(segment)
+                # fft_values = np.fft.fft(self.signal, norm=norm_value)
+                # # Step 2: Calculate the frequencies corresponding to the FFT values
+                # n = len(self.signal)
                 frequencies = np.fft.fftfreq(n, d=1 / self.data.fs)
 
                 # Step 3: Get the positive frequencies and the corresponding FFT values
@@ -235,19 +271,157 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 # self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow)
                 layout.insertWidget(0, self.toolbar)  # Insert at the top of the layout
 
-                # self.canvas = FigureCanvas(fig)
-                # layout = self.ui.mplwindow.layout()
-                # layout.addWidget(self.canvas)
-                # self.canvas.draw()
-                # self.ui.verticalLayout_5.addWidget(self.toolbar)
-
-            #     # Button to plot is now clickable
-            # self.ui.pbPlot.setEnabled(True)
-            # self.ui.pbFFT.setEnabled(True)
-            # self.ui.pbPeriodogram.setEnabled(True)
-            # self.ui.pbPlot.setEnabled(True)
             except Exception as e:
              print(e)
+
+    def updateSliderLabel(self):
+        try:
+            step = 5  # Define the step size
+            value = self.ui.windowDurationSlider.value()
+            rounded_value = round(value / step) * step  # Round to the nearest step
+            if value != rounded_value:  # Avoid infinite loops
+                self.ui.windowDurationSlider.setValue(rounded_value)
+            self.ui.sliderLabel.setText(f"{rounded_value} seconds")
+        except Exception as e:
+            print(e)
+
+
+    def loadImage(image):
+        # try:
+        #     myDlg = QFileDialog.getOpenFileName(None, 'OpenFile', "", "Record Files (*.jpg)")
+        #
+        #     self.myPath = myDlg[0][:-4] # Path + file + extension
+        #     FileNameWithExtension = QFileInfo(myDlg[0]).fileName()  # Just the file + extension
+        #
+        #     # Show success message box
+        #     QMessageBox.information(self, "Success", "Data successfully loaded!")
+        # except Exception as e:
+        #     print(e)
+        #     QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
+
+        # Load the image
+        image = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
+
+        # Normalize pixel values
+        image = image / 255.0
+
+        # Apply Gaussian blur for noise reduction
+        denoised_image = cv2.GaussianBlur(image, (5, 5), 0)
+
+        # Enhance contrast using CLAHE
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        contrast_enhanced = clahe.apply((denoised_image * 255).astype(np.uint8))
+        # Display results
+        plt.subplot(1, 2, 1)
+        plt.title("Original Image")
+        plt.imshow(image, cmap='gray')
+        plt.subplot(1, 2, 2)
+        plt.title("Preprocessed Image")
+        plt.imshow(contrast_enhanced, cmap='gray')
+        plt.show()
+    loadImage("train/image2/images/image2.png")
+
+    def unet_model(input_size=(128, 128, 1)):
+        inputs = Input(input_size)
+
+        # Encoder
+        c1 = Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
+        c1 = Conv2D(64, (3, 3), activation='relu', padding='same')(c1)
+        p1 = MaxPooling2D((2, 2))(c1)
+
+        c2 = Conv2D(128, (3, 3), activation='relu', padding='same')(p1)
+        c2 = Conv2D(128, (3, 3), activation='relu', padding='same')(c2)
+        p2 = MaxPooling2D((2, 2))(c2)
+
+        # Bottleneck
+        c3 = Conv2D(256, (3, 3), activation='relu', padding='same')(p2)
+        c3 = Conv2D(256, (3, 3), activation='relu', padding='same')(c3)
+
+        # Decoder
+        u1 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(c3)
+        u1 = concatenate([u1, c2])
+        c4 = Conv2D(128, (3, 3), activation='relu', padding='same')(u1)
+        c4 = Conv2D(128, (3, 3), activation='relu', padding='same')(c4)
+
+        u2 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c4)
+        u2 = concatenate([u2, c1])
+        c5 = Conv2D(64, (3, 3), activation='relu', padding='same')(u2)
+        c5 = Conv2D(64, (3, 3), activation='relu', padding='same')(c5)
+
+        outputs = Conv2D(1, (1, 1), activation='sigmoid')(c5)
+
+        model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
+        return model
+
+    import os
+    import cv2
+    import numpy as np
+
+    # Assign unique labels to each organ
+    organ_labels = {
+        "abdominal": 1,
+        "colon": 2,
+        "liver": 3,
+        "pancreas": 4,
+        "spleen": 5,
+        "stomach": 6
+    }
+
+    def load_and_preprocess(data_dir, target_size=(256, 256)):
+        images = []
+        masks = []
+        organ_labels = {
+            "abdominal": 1,
+            "colon": 2,
+            "liver": 3,
+            "pancreas": 4,
+            "small": 5,
+            "spleen": 6,
+            "stomach": 7
+        }
+        # Iterate through the folders containing images
+        for folder in os.listdir(data_dir):
+            folder_path = os.path.join(data_dir, folder)
+
+            # Load the image
+            image_path = os.path.join(folder_path, "images")
+            image_files = os.listdir(image_path)
+            for img_file in image_files:
+                img = cv2.imread(os.path.join(image_path, img_file), cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img, target_size)
+                images.append(img / 255.0)  # Normalize to [0, 1]
+                # Load corresponding masks
+                mask_prefix = img_file.split('.')[0][5:]  # e.g., "image3" -> "image3"
+                mask_path = os.path.join(folder_path, "masks")
+                combined_mask = np.zeros(target_size, dtype=np.uint8)
+
+                for organ, label in organ_labels.items():
+                    organ_mask_file = f"mask{mask_prefix}_{organ}.png"
+                    print(organ_mask_file)
+                    organ_mask_path = os.path.join(mask_path, organ_mask_file)
+                    if os.path.exists(organ_mask_path):
+                        organ_mask = cv2.imread(organ_mask_path, cv2.IMREAD_GRAYSCALE)
+                        organ_mask = cv2.resize(organ_mask, target_size)
+                        combined_mask[organ_mask > 0] = label  # Set label for organ pixels
+
+                masks.append(combined_mask)
+                plt.subplot(1, 2, 1)
+                plt.title("Original Image")
+                plt.imshow(images[0], cmap='gray')
+                plt.subplot(1, 2, 2)
+                plt.title("Preprocessed Image")
+                plt.imshow(masks[0], cmap='gray')
+                plt.show()
+        return np.array(images), np.array(masks)
+
+    # Example usage
+    dataset_dir = "train"
+    X, Y = load_and_preprocess(dataset_dir)
+    print(f"Loaded {len(X)} images and {len(Y)} masks.")
+    print("Images shape:", X.shape)
+    print("Masks shape:", Y.shape)
+
+
 
     def loadExcelData(self):
         try:
