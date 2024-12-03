@@ -321,7 +321,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         plt.show()
     loadImage("train/image2/images/image2.png")
 
-    def unet_model(input_size=(128, 128, 1)):
+    def unet_model(input_size=(128, 128, 1)):  # Updated from 128x128 to 256x256
         inputs = Input(input_size)
 
         # Encoder
@@ -367,7 +367,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         "stomach": 6
     }
 
-    def load_and_preprocess(data_dir, target_size=(256, 256)):
+    def load_and_preprocess(data_dir, target_size=(128, 128)):
         images = []
         masks = []
         organ_labels = {
@@ -397,7 +397,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
                 for organ, label in organ_labels.items():
                     organ_mask_file = f"mask{mask_prefix}_{organ}.png"
-                    print(organ_mask_file)
+                    # print(organ_mask_file)
                     organ_mask_path = os.path.join(mask_path, organ_mask_file)
                     if os.path.exists(organ_mask_path):
                         organ_mask = cv2.imread(organ_mask_path, cv2.IMREAD_GRAYSCALE)
@@ -405,13 +405,13 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                         combined_mask[organ_mask > 0] = label  # Set label for organ pixels
 
                 masks.append(combined_mask)
-                plt.subplot(1, 2, 1)
-                plt.title("Original Image")
-                plt.imshow(images[0], cmap='gray')
-                plt.subplot(1, 2, 2)
-                plt.title("Preprocessed Image")
-                plt.imshow(masks[0], cmap='gray')
-                plt.show()
+                # plt.subplot(1, 2, 1)
+                # plt.title("Original Image")
+                # plt.imshow(images[-1], cmap='gray')
+                # plt.subplot(1, 2, 2)
+                # plt.title("Preprocessed Image")
+                # plt.imshow(masks[-1], cmap='gray')
+                # plt.show()
         return np.array(images), np.array(masks)
 
     # Example usage
@@ -420,8 +420,32 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     print(f"Loaded {len(X)} images and {len(Y)} masks.")
     print("Images shape:", X.shape)
     print("Masks shape:", Y.shape)
+    # Initialize the model
+    model = unet_model()
 
+    # Compile the model
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
+    # Train the model
+    history = model.fit(X, Y, epochs=1, batch_size=64)
+
+    # Save the model
+    model.save("unet_model.h5")
+    # Load a test image
+    test_img = cv2.imread("test/image1/images/image1.png", cv2.IMREAD_GRAYSCALE)
+    test_img_resized = cv2.resize(test_img, (128, 128)) / 255.0  # Resize to 256x256
+
+    # Predict segmentation mask
+    predicted_mask = model.predict(test_img_resized[np.newaxis, ..., np.newaxis])
+
+    # Display result
+    plt.subplot(1, 2, 1)
+    plt.title("Original Image")
+    plt.imshow(test_img, cmap='gray')
+    plt.subplot(1, 2, 2)
+    plt.title("Predicted Mask")
+    plt.imshow(predicted_mask[0, ..., 0], cmap='gray')
+    plt.show()
 
     def loadExcelData(self):
         try:
