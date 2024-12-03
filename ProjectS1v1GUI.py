@@ -456,10 +456,78 @@ class Ui_MainWindow(object):
         self.stackedWidget.addWidget(self.Signal_6)
         self.Image_6 = QtWidgets.QWidget()
         self.Image_6.setObjectName("Image_6")
+        self.image6Layout = QtWidgets.QVBoxLayout(self.Image_6)
         self.groupBox = QtWidgets.QGroupBox(self.Image_6)
         self.groupBox.setGeometry(QtCore.QRect(-11, -1, 531, 511))
         self.groupBox.setTitle("")
         self.groupBox.setObjectName("groupBox")
+        # Segmentation Controls Panel
+        self.segmentationControls = QtWidgets.QGroupBox("Segmentation Controls", self.Image_6)
+        self.segmentationControlsLayout = QtWidgets.QVBoxLayout(self.segmentationControls)
+
+        # Load Image Button
+        self.btnLoadImage = QtWidgets.QPushButton("Load Image", self.segmentationControls)
+        self.segmentationControlsLayout.addWidget(self.btnLoadImage)
+        # Segmentation Method Selection
+        self.methodSelection = QtWidgets.QGroupBox("Select Method", self.segmentationControls)
+        self.methodLayout = QtWidgets.QVBoxLayout(self.methodSelection)
+
+        self.radioThresholding = QtWidgets.QRadioButton("Thresholding")
+        self.radioThresholding.setChecked(True)
+        self.methodLayout.addWidget(self.radioThresholding)
+
+        self.radioRegionGrowing = QtWidgets.QRadioButton("Region Growing")
+        self.methodLayout.addWidget(self.radioRegionGrowing)
+
+        self.radioML = QtWidgets.QRadioButton("Machine Learning")
+        self.methodLayout.addWidget(self.radioML)
+
+        self.segmentationControlsLayout.addWidget(self.methodSelection)
+
+        # Parameter Adjustments
+        self.parametersGroup = QtWidgets.QGroupBox("Parameters", self.segmentationControls)
+        self.parametersLayout = QtWidgets.QFormLayout(self.parametersGroup)
+
+        self.sliderThreshold = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.parametersGroup)
+        self.sliderThreshold.setMinimum(0)
+        self.sliderThreshold.setMaximum(255)
+        self.sliderThreshold.setValue(128)
+        self.parametersLayout.addRow("Threshold:", self.sliderThreshold)
+
+        self.spinBoxRegionSize = QtWidgets.QSpinBox(self.parametersGroup)
+        self.spinBoxRegionSize.setMinimum(1)
+        self.spinBoxRegionSize.setMaximum(100)
+        self.parametersLayout.addRow("Region Size:", self.spinBoxRegionSize)
+
+        self.segmentationControlsLayout.addWidget(self.parametersGroup)
+
+        # Start Segmentation Button
+        self.btnStartSegmentation = QtWidgets.QPushButton("Start Segmentation", self.segmentationControls)
+        self.segmentationControlsLayout.addWidget(self.btnStartSegmentation)
+
+        self.image6Layout.addWidget(self.segmentationControls)
+
+        # Image Display Section
+        self.imageDisplayGroup = QtWidgets.QGroupBox("Image Display", self.Image_6)
+        self.imageDisplayLayout = QtWidgets.QVBoxLayout(self.imageDisplayGroup)
+
+        self.labelOriginalImage = QtWidgets.QLabel("Original Image", self.imageDisplayGroup)
+        self.labelOriginalImage.setAlignment(QtCore.Qt.AlignCenter)
+        self.labelOriginalImage.setFrameShape(QtWidgets.QFrame.Box)
+        self.labelOriginalImage.setMinimumSize(400, 300)
+        self.imageDisplayLayout.addWidget(self.labelOriginalImage)
+
+        self.labelSegmentedImage = QtWidgets.QLabel("Segmented Image", self.imageDisplayGroup)
+        self.labelSegmentedImage.setAlignment(QtCore.Qt.AlignCenter)
+        self.labelSegmentedImage.setFrameShape(QtWidgets.QFrame.Box)
+        self.labelSegmentedImage.setMinimumSize(400, 300)
+        self.imageDisplayLayout.addWidget(self.labelSegmentedImage)
+
+        self.image6Layout.addWidget(self.imageDisplayGroup)
+
+        # Ensure the layout updates dynamically
+        self.Image_6.setLayout(self.image6Layout)
+
         self.uipanel2 = QtWidgets.QGroupBox(self.groupBox)
         self.uipanel2.setGeometry(QtCore.QRect(150, 10, 381, 491))
         self.uipanel2.setAlignment(QtCore.Qt.AlignCenter)
@@ -607,16 +675,16 @@ class Ui_MainWindow(object):
         self.ScalingcomboBox.setItemText(0, _translate("MainWindow", "density"))
         self.ScalingcomboBox.setItemText(1, _translate("MainWindow", "spectrum"))
         self.pbValidate.setText(_translate("MainWindow", "Validate"))
-        self.uipanel2.setTitle(_translate("MainWindow", "Image Preview"))
-        self.uipanel1.setTitle(_translate("MainWindow", "Settings"))
-        self.LoadFile.setText(_translate("MainWindow", "Load Image"))
-        self.uipaneldisplay.setTitle(_translate("MainWindow", "Filters"))
-        self.rbFaces.setText(_translate("MainWindow", "Faces"))
-        self.rbPoints.setText(_translate("MainWindow", "Points"))
-        self.rbWire.setText(_translate("MainWindow", "Wireframe"))
-        self.uipanelbackground.setTitle(_translate("MainWindow", "Background Color"))
-        self.rbWhite.setText(_translate("MainWindow", "Black"))
-        self.rbBlack.setText(_translate("MainWindow", "White"))
+        # self.uipanel2.setTitle(_translate("MainWindow", "Image Preview"))
+        # self.uipanel1.setTitle(_translate("MainWindow", "Settings"))
+        # self.LoadFile.setText(_translate("MainWindow", "Load Image"))
+        # self.uipaneldisplay.setTitle(_translate("MainWindow", "Filters"))
+        # self.rbFaces.setText(_translate("MainWindow", "Faces"))
+        # self.rbPoints.setText(_translate("MainWindow", "Points"))
+        # self.rbWire.setText(_translate("MainWindow", "Wireframe"))
+        # self.uipanelbackground.setTitle(_translate("MainWindow", "Background Color"))
+#         self.rbWhite.setText(_translate("MainWindow", "Black"))
+#         self.rbBlack.setText(_translate("MainWindow", "White"))
 import resources_rc
 
 
