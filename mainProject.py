@@ -11,6 +11,8 @@ from IPython.display import display
 from scipy.signal import periodogram,welch
 from scipy.signal.windows import hamming, hann, boxcar
 from scipy.signal import find_peaks
+# from tensorflow.keras.models import load_model
+from PIL import Image
 
 import openpyxl
 
@@ -34,8 +36,8 @@ from matplotlib.figure import Figure
 import numpy as np
 from numpy import *
 from ProjectS1v1GUI import Ui_MainWindow
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate
+# import tensorflow as tf
+# from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate
 
 
 b_Canvas = False
@@ -68,6 +70,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.ScalingcomboBox.currentTextChanged.connect(self.plotSignal)
         self.ui.NormcomboBox.currentTextChanged.connect(self.plotSignal)
         self.ui.pbValidate.clicked.connect(self.updateMainWindow)
+
+        # Link the clicked action from the button to a function to read jpg image
+        self.ui.btnLoadImage.clicked.connect(self.loadImage)
 
         # Link the clicked action from the button to a function to read excel file
         self.ui.LoadBtn_excel.clicked.connect(self.loadExcelData)
@@ -286,72 +291,30 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             print(e)
 
 
-    def loadImage(image):
-        # try:
-        #     myDlg = QFileDialog.getOpenFileName(None, 'OpenFile', "", "Record Files (*.jpg)")
-        #
-        #     self.myPath = myDlg[0][:-4] # Path + file + extension
-        #     FileNameWithExtension = QFileInfo(myDlg[0]).fileName()  # Just the file + extension
-        #
-        #     # Show success message box
-        #     QMessageBox.information(self, "Success", "Data successfully loaded!")
-        # except Exception as e:
-        #     print(e)
-        #     QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
+    def loadImage(self):
+        try:
+            myDlg = QFileDialog.getOpenFileName(None, "Load Image", "", "Images (*.png *.jpg *.bmp)")
+            self.myPath = myDlg[0] # Path + file + extension
+            if self.myPath:
+                # Load and display image
 
-        # Load the image
-        image = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
+                image = cv2.imread(self.myPath, cv2.IMREAD_GRAYSCALE)
+                image = image / 255.0 # Normalize pixel values
+                denoised_image = cv2.GaussianBlur(image, (5, 5), 0)  # Apply Gaussian blur for noise reduction
+                # Enhance contrast using CLAHE
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                contrast_enhanced = clahe.apply((denoised_image * 255).astype(np.uint8))
+                Image.fromarray(contrast_enhanced).save('image.png')
+                pixmap = QtGui.QPixmap("image.png")
+                self.ui.labelOriginalImage.setPixmap(pixmap.scaled(self.ui.labelOriginalImage.size(), QtCore.Qt.KeepAspectRatio))
 
-        # Normalize pixel values
-        image = image / 255.0
+            # Show success message box
+            QMessageBox.information(self, "Success", "Image successfully loaded!")
 
-        # Apply Gaussian blur for noise reduction
-        denoised_image = cv2.GaussianBlur(image, (5, 5), 0)
 
-        # Enhance contrast using CLAHE
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        contrast_enhanced = clahe.apply((denoised_image * 255).astype(np.uint8))
-        # Display results
-        plt.subplot(1, 2, 1)
-        plt.title("Original Image")
-        plt.imshow(image, cmap='gray')
-        plt.subplot(1, 2, 2)
-        plt.title("Preprocessed Image")
-        plt.imshow(contrast_enhanced, cmap='gray')
-        plt.show()
-    loadImage("train/image2/images/image2.png")
-
-    def unet_model(input_size=(128, 128, 1)):  # Updated from 128x128 to 256x256
-        inputs = Input(input_size)
-
-        # Encoder
-        c1 = Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
-        c1 = Conv2D(64, (3, 3), activation='relu', padding='same')(c1)
-        p1 = MaxPooling2D((2, 2))(c1)
-
-        c2 = Conv2D(128, (3, 3), activation='relu', padding='same')(p1)
-        c2 = Conv2D(128, (3, 3), activation='relu', padding='same')(c2)
-        p2 = MaxPooling2D((2, 2))(c2)
-
-        # Bottleneck
-        c3 = Conv2D(256, (3, 3), activation='relu', padding='same')(p2)
-        c3 = Conv2D(256, (3, 3), activation='relu', padding='same')(c3)
-
-        # Decoder
-        u1 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(c3)
-        u1 = concatenate([u1, c2])
-        c4 = Conv2D(128, (3, 3), activation='relu', padding='same')(u1)
-        c4 = Conv2D(128, (3, 3), activation='relu', padding='same')(c4)
-
-        u2 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c4)
-        u2 = concatenate([u2, c1])
-        c5 = Conv2D(64, (3, 3), activation='relu', padding='same')(u2)
-        c5 = Conv2D(64, (3, 3), activation='relu', padding='same')(c5)
-
-        outputs = Conv2D(1, (1, 1), activation='sigmoid')(c5)
-
-        model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
-        return model
+        except Exception as e:
+            print(e)
+            QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
 
     import os
     import cv2
@@ -363,8 +326,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         "colon": 2,
         "liver": 3,
         "pancreas": 4,
-        "spleen": 5,
-        "stomach": 6
+        "small": 5,
+        "spleen": 6,
+        "stomach": 7
     }
 
     def load_and_preprocess(data_dir, target_size=(128, 128)):
@@ -379,31 +343,28 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             "spleen": 6,
             "stomach": 7
         }
-        # Iterate through the folders containing images
         for folder in os.listdir(data_dir):
             folder_path = os.path.join(data_dir, folder)
 
-            # Load the image
+            # Load images
             image_path = os.path.join(folder_path, "images")
-            image_files = os.listdir(image_path)
-            for img_file in image_files:
-                img = cv2.imread(os.path.join(image_path, img_file), cv2.IMREAD_GRAYSCALE)
-                img = cv2.resize(img, target_size)
-                images.append(img / 255.0)  # Normalize to [0, 1]
-                # Load corresponding masks
-                mask_prefix = img_file.split('.')[0][5:]  # e.g., "image3" -> "image3"
+            for img_file in os.listdir(image_path):
+                img = cv2.imread(os.path.join(image_path, img_file))  # BGR
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                img = cv2.resize(img, target_size) / 255.0  # Normalize
+                images.append(img)
+
+                # Load masks
+                mask_prefix = img_file.split('.')[0][5:]
                 mask_path = os.path.join(folder_path, "masks")
                 combined_mask = np.zeros(target_size, dtype=np.uint8)
-
                 for organ, label in organ_labels.items():
                     organ_mask_file = f"mask{mask_prefix}_{organ}.png"
-                    # print(organ_mask_file)
                     organ_mask_path = os.path.join(mask_path, organ_mask_file)
                     if os.path.exists(organ_mask_path):
                         organ_mask = cv2.imread(organ_mask_path, cv2.IMREAD_GRAYSCALE)
                         organ_mask = cv2.resize(organ_mask, target_size)
-                        combined_mask[organ_mask > 0] = label  # Set label for organ pixels
-
+                        combined_mask[organ_mask > 0] = label
                 masks.append(combined_mask)
                 # plt.subplot(1, 2, 1)
                 # plt.title("Original Image")
@@ -413,39 +374,16 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 # plt.imshow(masks[-1], cmap='gray')
                 # plt.show()
         return np.array(images), np.array(masks)
+    #
+    # # Load dataset
+    # dataset_dir = "train"
+    # X, Y = load_and_preprocess(dataset_dir)
+    #
+    # # # Adjust mask dimensions
+    # Y = np.expand_dims(Y, axis=-1)
 
-    # Example usage
-    dataset_dir = "train"
-    X, Y = load_and_preprocess(dataset_dir)
-    print(f"Loaded {len(X)} images and {len(Y)} masks.")
-    print("Images shape:", X.shape)
-    print("Masks shape:", Y.shape)
-    # Initialize the model
-    model = unet_model()
+    # model = load_model("unet_pretrained_model1.h5")
 
-    # Compile the model
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-    # Train the model
-    history = model.fit(X, Y, epochs=1, batch_size=64)
-
-    # Save the model
-    model.save("unet_model.h5")
-    # Load a test image
-    test_img = cv2.imread("test/image1/images/image1.png", cv2.IMREAD_GRAYSCALE)
-    test_img_resized = cv2.resize(test_img, (128, 128)) / 255.0  # Resize to 256x256
-
-    # Predict segmentation mask
-    predicted_mask = model.predict(test_img_resized[np.newaxis, ..., np.newaxis])
-
-    # Display result
-    plt.subplot(1, 2, 1)
-    plt.title("Original Image")
-    plt.imshow(test_img, cmap='gray')
-    plt.subplot(1, 2, 2)
-    plt.title("Predicted Mask")
-    plt.imshow(predicted_mask[0, ..., 0], cmap='gray')
-    plt.show()
 
     def loadExcelData(self):
         try:
