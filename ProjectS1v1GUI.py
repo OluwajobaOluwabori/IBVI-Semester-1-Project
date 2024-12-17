@@ -300,230 +300,640 @@ class Ui_MainWindow(object):
         self.gridLayout_7 = QtWidgets.QGridLayout(self.Signal_6)
         self.gridLayout_7.setContentsMargins(0, 0, -1, 0)
         self.gridLayout_7.setObjectName("gridLayout_7")
-        self.mplwindow = QtWidgets.QFrame(self.Signal_6)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.mplwindow.sizePolicy().hasHeightForWidth())
-        self.mplwindow.setSizePolicy(sizePolicy)
+        # Adding a title to the main layout
+        self.titleLabel = QtWidgets.QLabel("ECG Data Processing")
+        self.titleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        self.titleLabel.setFont(font)
+
+        self.gridLayout_7.addWidget(self.titleLabel, 0, 0, 1, 2)  # Spans two columns
+
+        # Settings Group Box
+        self.settingsGroupBox = QtWidgets.QGroupBox("Settings")
+        self.settingsGroupBox.setStyleSheet("font-size: 10pt;")
+        self.settingsLayout = QtWidgets.QVBoxLayout(self.settingsGroupBox)
+
+        # Load Signal Button
+        self.LoadBtnsignal = QtWidgets.QPushButton("Load Signal")
+        self.LoadBtnsignal.setStyleSheet("background-color: #007bff; color: white; padding: 5px; border-radius: 5px;")
+        self.LoadBtnsignal.setToolTip("Click to load ECG signal data.")
+        self.settingsLayout.addWidget(self.LoadBtnsignal)
+
+        # Time Navigation
+        self.timeLayout = QtWidgets.QHBoxLayout()
+        self.label_3 = QtWidgets.QLabel("Go to:")
+        self.label_3.setObjectName("label_3")
+        self.timeInput = QtWidgets.QLineEdit()
+        self.timeInput.setObjectName("timeInput")
+        self.updateTimeButton = QtWidgets.QPushButton()
+        self.updateTimeButton.setIcon(QtGui.QIcon(":/icons8-lien-externe-32.png"))
+        self.updateTimeButton.setObjectName("updateTimeButton")
+        self.updateTimeButton.setToolTip("Update time range")
+        self.timeLayout.addWidget(self.label_3)
+        self.timeLayout.addWidget(self.timeInput)
+        self.timeLayout.addWidget(self.updateTimeButton)
+        self.settingsLayout.addLayout(self.timeLayout)
+        #
+        # self.verticalLayout_6 = QtWidgets.QVBoxLayout()
+        # self.verticalLayout_6.setObjectName("verticalLayout_6")
+        #
+        # self.horizontalLayout_10 = QtWidgets.QHBoxLayout()
+        # self.horizontalLayout_10.setObjectName("horizontalLayout_10")
+        # self.label_2 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_2.setObjectName("label_2")
+        # self.horizontalLayout_10.addWidget(self.label_2)
+        # self.sliderLabel = QtWidgets.QLabel(self.groupBox_)
+        # self.sliderLabel.setObjectName("sliderLabel")
+        # self.horizontalLayout_10.addWidget(self.sliderLabel)
+        # self.verticalLayout_6.addLayout(self.horizontalLayout_10)
+        # self.windowDurationSlider = QtWidgets.QSlider(self.groupBox_)
+        # self.windowDurationSlider.setRange(5, 60)  # 5 to 60 seconds
+        # self.windowDurationSlider.setSingleStep(5)
+        # self.windowDurationSlider.setValue(5)  # Default: 5 seconds
+        # self.windowDurationSlider.setPageStep(5)
+        # self.windowDurationSlider.setOrientation(QtCore.Qt.Horizontal)
+        # self.windowDurationSlider.setObjectName("windowDurationSlider")
+        # self.verticalLayout_6.addWidget(self.windowDurationSlider)
+        # self.gridLayout.addLayout(self.verticalLayout_6, 3, 0, 1, 2)
+        # spacerItem5 = QtWidgets.QSpacerItem(20, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        # self.gridLayout.addItem(spacerItem5, 4, 0, 1, 1)
+        #
+        # Window Duration Slider
+        self.windowDurationLayout = QtWidgets.QVBoxLayout()
+        self.windowDurationLabel = QtWidgets.QLabel()
+        self.windowDurationLabel.setObjectName("windowDurationLabel")
+        self.windowDurationSlider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.windowDurationSlider.setRange(5, 60)
+        self.windowDurationSlider.setSingleStep(5)
+        self.windowDurationSlider.setValue(5)
+        self.windowDurationSlider.setObjectName("windowDurationSlider")
+        self.windowDurationSlider.setToolTip("Adjust window duration for analysis")
+        self.windowDurationLayout.addWidget(self.windowDurationLabel)
+        self.windowDurationLayout.addWidget(self.windowDurationSlider)
+        self.settingsLayout.addLayout(self.windowDurationLayout)
+
+        # Norm Combo Box
+        # self.NormComboBoxLayout = QtWidgets.QHBoxLayout()
+        # self.label_50 = QtWidgets.QLabel("Norm:")
+        # self.label_50.setObjectName("label_50")
+        # self.NormcomboBox = QtWidgets.QComboBox()
+        # self.NormcomboBox.addItems(["Norm 1", "Norm 2", "Norm 3"])
+        # self.NormcomboBox.setToolTip("Select the norm for the Fourier Transform.")
+        # self.settingsLayout.addWidget(self.NormcomboBox)
+        # self.NormComboBoxLayout.addWidget(self.label_50)
+        # self.NormComboBoxLayout.addWidget(self.NormcomboBox)
+        # self.settingsLayout.addLayout(self.NormComboBoxLayout)
+
+        # FFT Parameters
+        self.fftGroup = QtWidgets.QGroupBox("FFT Parameters")
+        self.fftLayout = QtWidgets.QHBoxLayout(self.fftGroup)
+
+        self.label_50 = QtWidgets.QLabel("Norm:")
+        self.NormcomboBox = QtWidgets.QComboBox()
+        self.NormcomboBox.addItems(["forward", "backward", "ortho"])
+        self.NormcomboBox.setToolTip("Select the norm for the Fourier Transform.")
+
+
+        self.fftLayout.addWidget(self.label_50)
+        self.fftLayout.addWidget(self.NormcomboBox)
+        self.settingsLayout.addWidget(self.fftGroup)
+
+        # Add Settings Group Box to Main Layout
+        self.gridLayout_7.addWidget(self.settingsGroupBox, 1, 0)
+
+        # Charts Group Box
+        # self.chartsGroupBox = QtWidgets.QGroupBox("Analysis Charts")
+        # self.chartsGroupBox.setStyleSheet("font-weight: bold; font-size: 12pt;")
+        # self.chartsLayout = QtWidgets.QVBoxLayout(self.chartsGroupBox)
+
+        # self.mplwindow = QtWidgets.QFrame(self.Signal_6)
+        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # sizePolicy.setHorizontalStretch(0)
+        # sizePolicy.setVerticalStretch(0)
+        # sizePolicy.setHeightForWidth(self.mplwindow.sizePolicy().hasHeightForWidth())
+        # self.mplwindow.setSizePolicy(sizePolicy)
+        # self.mplwindow.setFrameShape(QtWidgets.QFrame.Box)
+        # self.mplwindow.setFrameShadow(QtWidgets.QFrame.Raised)
+        # self.mplwindow.setObjectName("mplwindow")
+        # self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.mplwindow)
+        # self.verticalLayout_7.setObjectName("verticalLayout_7")
+        # self.verticalLayout_5 = QtWidgets.QVBoxLayout()
+        # self.verticalLayout_5.setObjectName("verticalLayout_5")
+        # self.verticalLayout_7.addLayout(self.verticalLayout_5)
+        # self.gridLayout_7.addWidget(self.mplwindow, 0, 1, 1, 1)
+        #
+        # self.gridLayout_7.setContentsMargins(10, 10, 10, 10)  # Add margin around main grid layout
+        # self.gridLayout_7.setSpacing(10)  # Add spacing between widgets
+        #
+        # Matplotlib Placeholder Widget
+        # self.mplwindow = QtWidgets.QWidget()
+        # self.mplwindow.setStyleSheet("background-color: white; border: 1px solid #ccc;")
+        # self.chartsLayout.addWidget(self.mplwindow)
+        #
+        # # Add Charts Group Box to Main Layout
+        # self.gridLayout_7.addWidget(self.chartsGroupBox)
+
+        # Validate Button
+        # self.ValidateBtn = QtWidgets.QPushButton("Validate Analysis")
+        # self.ValidateBtn.setStyleSheet("background-color: #28a745; color: white; padding: 5px; border-radius: 5px;")
+        # self.ValidateBtn.setToolTip("Click to validate the analysis results.")
+        # self.gridLayout_7.addWidget(self.ValidateBtn, 2, 0, 1, 2)  # Spanning two columns
+
+        # Footer Label
+        self.footerLabel = QtWidgets.QLabel("Developed by Godsfavour | Version 1.0")
+        self.footerLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.footerLabel.setStyleSheet("color: gray; font-size: 10pt;")
+        self.gridLayout_7.addWidget(self.footerLabel, 3, 0, 1, 2)  # Bottom of the layout
+        # self.settingsGroupBox.setFlat(True)  # Makes it collapsible
+        self.settingsLayout.addStretch(1)  # Adds space for better compression
+        self.settingsGroupBox.setFixedWidth(200)  # Adjust width as needed
+
+        # self.mplwindow = QtWidgets.QFrame(self.Signal_6)
+        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # sizePolicy.setHorizontalStretch(0)
+        # sizePolicy.setVerticalStretch(0)
+        # sizePolicy.setHeightForWidth(self.mplwindow.sizePolicy().hasHeightForWidth())
+        # self.mplwindow.setSizePolicy(sizePolicy)
+        # self.mplwindow.setFrameShape(QtWidgets.QFrame.Box)
+        # self.mplwindow.setFrameShadow(QtWidgets.QFrame.Raised)
+        # self.mplwindow.setObjectName("mplwindow")
+        # self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.mplwindow)
+        # self.verticalLayout_7.setObjectName("verticalLayout_7")
+        # self.verticalLayout_5 = QtWidgets.QVBoxLayout()
+        # self.verticalLayout_5.setObjectName("verticalLayout_5")
+        # self.verticalLayout_7.addLayout(self.verticalLayout_5)
+        # self.gridLayout_7.addWidget(self.mplwindow, 0, 1, 1, 1)
+        #
+        # self.gridLayout_7.setContentsMargins(10, 10, 10, 10)  # Add margin around main grid layout
+        # self.gridLayout_7.setSpacing(10)  # Add spacing between widgets
+        #
+        # self.groupBox_ = QtWidgets.QGroupBox("Settings")
+        # font = QtGui.QFont()
+        # font.setFamily("MS Shell Dlg 2")
+        # font.setPointSize(10)
+        # font.setBold(False)
+        # font.setItalic(False)
+        # font.setWeight(50)
+        # self.groupBox_.setFont(font)
+        # self.groupBox_.setStyleSheet("font: 10pt \"MS Shell Dlg 2\";")
+        # self.groupBox_.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        # self.groupBox_.setObjectName("groupBox_")
+        # self.gridLayout = QtWidgets.QGridLayout(self.groupBox_)
+        # self.gridLayout.setObjectName("gridLayout")
+        # self.LoadBtnsignal = QtWidgets.QPushButton(self.groupBox_)
+        # self.LoadBtnsignal.setObjectName("LoadBtnsignal")
+        #
+        # self.gridLayout.addWidget(self.LoadBtnsignal, 0, 0, 1, 2)
+        # spacerItem4 = QtWidgets.QSpacerItem(20, 18, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        # self.gridLayout.addItem(spacerItem4, 1, 1, 1, 1)
+        # self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
+        # self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        # self.label_3 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_3.setObjectName("label_3")
+        # self.horizontalLayout_5.addWidget(self.label_3)
+        # self.timeInput = QtWidgets.QLineEdit(self.groupBox_)
+        # self.timeInput.setObjectName("timeInput")
+        # self.horizontalLayout_5.addWidget(self.timeInput)
+        # self.updateTimeButton = QtWidgets.QPushButton(self.groupBox_)
+        # self.updateTimeButton.setText("")
+        # icon5 = QtGui.QIcon()
+        # icon5.addPixmap(QtGui.QPixmap(":/icons8-lien-externe-32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        # self.updateTimeButton.setIcon(icon5)
+        # self.updateTimeButton.setObjectName("updateTimeButton")
+        # self.horizontalLayout_5.addWidget(self.updateTimeButton)
+        # self.gridLayout.addLayout(self.horizontalLayout_5, 2, 0, 1, 2)
+
+
+        # self.label_48 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_48.setObjectName("label_48")
+        # self.gridLayout.addWidget(self.label_48, 5, 0, 1, 2)
+        # self.label_49 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_49.setObjectName("label_49")
+        # self.gridLayout.addWidget(self.label_49, 6, 0, 1, 2)
+        # self.horizontalLayout_32 = QtWidgets.QHBoxLayout()
+        # self.horizontalLayout_32.setObjectName("horizontalLayout_32")
+        # self.label_50 = QtWidgets.QLabel(self.groupBox_)
+        # font = QtGui.QFont()
+        # font.setPointSize(10)
+        # self.label_50.setFont(font)
+        # self.label_50.setObjectName("label_50")
+        # self.horizontalLayout_32.addWidget(self.label_50)
+        # self.NormcomboBox = QtWidgets.QComboBox(self.groupBox_)
+        # font = QtGui.QFont()
+        # font.setPointSize(10)
+        # self.NormcomboBox.setFont(font)
+        # self.NormcomboBox.setEditable(False)
+        # self.NormcomboBox.setMaxCount(2147483646)
+        # self.NormcomboBox.setObjectName("NormcomboBox")
+        # self.NormcomboBox.addItem("")
+        # self.NormcomboBox.addItem("")
+        # self.NormcomboBox.addItem("")
+        # self.horizontalLayout_32.addWidget(self.NormcomboBox)
+        # self.gridLayout.addLayout(self.horizontalLayout_32, 7, 0, 1, 2)
+        # spacerItem6 = QtWidgets.QSpacerItem(20, 18, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        # self.gridLayout.addItem(spacerItem6, 8, 0, 1, 1)
+        # self.label_51 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_51.setObjectName("label_51")
+        # self.gridLayout.addWidget(self.label_51, 9, 0, 1, 2)
+        # self.horizontalLayout_33 = QtWidgets.QHBoxLayout()
+        # self.horizontalLayout_33.setObjectName("horizontalLayout_33")
+        # self.label_52 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_52.setSizeIncrement(QtCore.QSize(6, 7))
+        # font = QtGui.QFont()
+        # font.setPointSize(10)
+        # self.label_52.setFont(font)
+        # self.label_52.setObjectName("label_52")
+        # self.horizontalLayout_33.addWidget(self.label_52)
+        # self.WindowcomboBox = QtWidgets.QComboBox(self.groupBox_)
+        # self.WindowcomboBox.setSizeIncrement(QtCore.QSize(6, 7))
+        # font = QtGui.QFont()
+        # font.setPointSize(10)
+        # self.WindowcomboBox.setFont(font)
+        # self.WindowcomboBox.setEditable(False)
+        # self.WindowcomboBox.setMaxCount(2147483646)
+        # self.WindowcomboBox.setObjectName("WindowcomboBox")
+        # self.WindowcomboBox.addItem("")
+        # self.WindowcomboBox.addItem("")
+        # self.WindowcomboBox.addItem("")
+        # self.horizontalLayout_33.addWidget(self.WindowcomboBox)
+        # self.gridLayout.addLayout(self.horizontalLayout_33, 10, 0, 1, 2)
+        # self.horizontalLayout_34 = QtWidgets.QHBoxLayout()
+        # self.horizontalLayout_34.setObjectName("horizontalLayout_34")
+
+
+
+        # self.label_53 = QtWidgets.QLabel(self.groupBox_)
+        # self.label_53.setSizeIncrement(QtCore.QSize(6, 7))
+        # font = QtGui.QFont()
+        # font.setPointSize(10)
+        # self.label_53.setFont(font)
+        # self.label_53.setObjectName("label_53")
+        # self.horizontalLayout_34.addWidget(self.label_53)
+        # self.ScalingcomboBox = QtWidgets.QComboBox(self.groupBox_)
+        # self.ScalingcomboBox.setSizeIncrement(QtCore.QSize(6, 7))
+        # font = QtGui.QFont()
+        # font.setPointSize(10)
+        # self.ScalingcomboBox.setFont(font)
+        # self.ScalingcomboBox.setEditable(False)
+        # self.ScalingcomboBox.setMaxCount(2147483646)
+        # self.ScalingcomboBox.setObjectName("ScalingcomboBox")
+        # self.ScalingcomboBox.addItem("")
+        # self.ScalingcomboBox.addItem("")
+        # self.horizontalLayout_34.addWidget(self.ScalingcomboBox)
+        # self.gridLayout.addLayout(self.horizontalLayout_34, 11, 0, 1, 2)
+
+        # Periodogram Parameters
+        self.periodogramGroup = QtWidgets.QGroupBox("Periodogram Parameters")
+        self.periodogramLayout = QtWidgets.QVBoxLayout(self.periodogramGroup)
+
+        # Scaling Combo Box
+        self.scalingComboBoxLayout = QtWidgets.QHBoxLayout()
+        self.label_53 = QtWidgets.QLabel("Scaling:")
+        self.label_53.setObjectName("label_53")
+        self.ScalingcomboBox = QtWidgets.QComboBox()
+        self.ScalingcomboBox.setObjectName("ScalingcomboBox")
+        self.ScalingcomboBox.addItems(["density", "spectrum"])
+        self.ScalingcomboBox.setToolTip("Select scaling type for periodogram")
+        self.scalingComboBoxLayout.addWidget(self.label_53)
+        self.scalingComboBoxLayout.addWidget(self.ScalingcomboBox)
+
+        # Add Scaling Layout to Periodogram Layout
+        self.periodogramLayout.addLayout(self.scalingComboBoxLayout)
+
+        # Window Combo Box
+        self.windowComboBoxLayout = QtWidgets.QHBoxLayout()
+        self.label_52 = QtWidgets.QLabel("Window:")
+        self.label_52.setObjectName("label_52")
+        self.WindowcomboBox = QtWidgets.QComboBox()
+        self.WindowcomboBox.setObjectName("WindowcomboBox")
+        self.WindowcomboBox.addItems(["boxcar", "hann", "hamming"])
+        self.WindowcomboBox.setToolTip("Select window type for periodogram")
+        self.windowComboBoxLayout.addWidget(self.label_52)
+        self.windowComboBoxLayout.addWidget(self.WindowcomboBox)
+
+        # Add Window Layout to Periodogram Layout
+        self.periodogramLayout.addLayout(self.windowComboBoxLayout)
+
+        # Add Periodogram Group to Settings Layout
+        self.settingsLayout.addWidget(self.periodogramGroup)
+
+
+        # Right Panel (Graphs)
+        self.graphsGroupBox = QtWidgets.QGroupBox("Analysis Charts")
+        self.graphsGroupBox.setStyleSheet("font-size: 12px; font-weight: bold;")
+        self.graphsLayout = QtWidgets.QVBoxLayout(self.graphsGroupBox)
+
+        self.mplwindow = QtWidgets.QFrame()
         self.mplwindow.setFrameShape(QtWidgets.QFrame.Box)
         self.mplwindow.setFrameShadow(QtWidgets.QFrame.Raised)
         self.mplwindow.setObjectName("mplwindow")
         self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.mplwindow)
-        self.verticalLayout_7.setObjectName("verticalLayout_7")
-        self.verticalLayout_5 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_5.setObjectName("verticalLayout_5")
-        self.verticalLayout_7.addLayout(self.verticalLayout_5)
-        self.gridLayout_7.addWidget(self.mplwindow, 0, 1, 1, 1)
-        self.groupBox_ = QtWidgets.QGroupBox(self.Signal_6)
-        font = QtGui.QFont()
-        font.setFamily("MS Shell Dlg 2")
-        font.setPointSize(10)
-        font.setBold(False)
-        font.setItalic(False)
-        font.setWeight(50)
-        self.groupBox_.setFont(font)
-        self.groupBox_.setStyleSheet("font: 10pt \"MS Shell Dlg 2\";")
-        self.groupBox_.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
-        self.groupBox_.setObjectName("groupBox_")
-        self.gridLayout = QtWidgets.QGridLayout(self.groupBox_)
-        self.gridLayout.setObjectName("gridLayout")
-        self.LoadBtnsignal = QtWidgets.QPushButton(self.groupBox_)
-        self.LoadBtnsignal.setObjectName("LoadBtnsignal")
-        self.gridLayout.addWidget(self.LoadBtnsignal, 0, 0, 1, 2)
-        spacerItem4 = QtWidgets.QSpacerItem(20, 18, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem4, 1, 1, 1, 1)
-        self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        self.label_3 = QtWidgets.QLabel(self.groupBox_)
-        self.label_3.setObjectName("label_3")
-        self.horizontalLayout_5.addWidget(self.label_3)
-        self.timeInput = QtWidgets.QLineEdit(self.groupBox_)
-        self.timeInput.setObjectName("timeInput")
-        self.horizontalLayout_5.addWidget(self.timeInput)
-        self.updateTimeButton = QtWidgets.QPushButton(self.groupBox_)
-        self.updateTimeButton.setText("")
-        icon5 = QtGui.QIcon()
-        icon5.addPixmap(QtGui.QPixmap(":/icons8-lien-externe-32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.updateTimeButton.setIcon(icon5)
-        self.updateTimeButton.setObjectName("updateTimeButton")
-        self.horizontalLayout_5.addWidget(self.updateTimeButton)
-        self.gridLayout.addLayout(self.horizontalLayout_5, 2, 0, 1, 2)
-        self.verticalLayout_6 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_6.setObjectName("verticalLayout_6")
-        self.horizontalLayout_10 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_10.setObjectName("horizontalLayout_10")
-        self.label_2 = QtWidgets.QLabel(self.groupBox_)
-        self.label_2.setObjectName("label_2")
-        self.horizontalLayout_10.addWidget(self.label_2)
-        self.sliderLabel = QtWidgets.QLabel(self.groupBox_)
-        self.sliderLabel.setObjectName("sliderLabel")
-        self.horizontalLayout_10.addWidget(self.sliderLabel)
-        self.verticalLayout_6.addLayout(self.horizontalLayout_10)
-        self.windowDurationSlider = QtWidgets.QSlider(self.groupBox_)
-        self.windowDurationSlider.setRange(5, 60)  # 5 to 60 seconds
-        self.windowDurationSlider.setSingleStep(5)
-        self.windowDurationSlider.setValue(5)  # Default: 5 seconds
-        self.windowDurationSlider.setPageStep(5)
-        self.windowDurationSlider.setOrientation(QtCore.Qt.Horizontal)
-        self.windowDurationSlider.setObjectName("windowDurationSlider")
-        self.verticalLayout_6.addWidget(self.windowDurationSlider)
-        self.gridLayout.addLayout(self.verticalLayout_6, 3, 0, 1, 2)
-        spacerItem5 = QtWidgets.QSpacerItem(20, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem5, 4, 0, 1, 1)
-        self.label_48 = QtWidgets.QLabel(self.groupBox_)
-        self.label_48.setObjectName("label_48")
-        self.gridLayout.addWidget(self.label_48, 5, 0, 1, 2)
-        self.label_49 = QtWidgets.QLabel(self.groupBox_)
-        self.label_49.setObjectName("label_49")
-        self.gridLayout.addWidget(self.label_49, 6, 0, 1, 2)
-        self.horizontalLayout_32 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_32.setObjectName("horizontalLayout_32")
-        self.label_50 = QtWidgets.QLabel(self.groupBox_)
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.label_50.setFont(font)
-        self.label_50.setObjectName("label_50")
-        self.horizontalLayout_32.addWidget(self.label_50)
-        self.NormcomboBox = QtWidgets.QComboBox(self.groupBox_)
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.NormcomboBox.setFont(font)
-        self.NormcomboBox.setEditable(False)
-        self.NormcomboBox.setMaxCount(2147483646)
-        self.NormcomboBox.setObjectName("NormcomboBox")
-        self.NormcomboBox.addItem("")
-        self.NormcomboBox.addItem("")
-        self.NormcomboBox.addItem("")
-        self.horizontalLayout_32.addWidget(self.NormcomboBox)
-        self.gridLayout.addLayout(self.horizontalLayout_32, 7, 0, 1, 2)
-        spacerItem6 = QtWidgets.QSpacerItem(20, 18, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem6, 8, 0, 1, 1)
-        self.label_51 = QtWidgets.QLabel(self.groupBox_)
-        self.label_51.setObjectName("label_51")
-        self.gridLayout.addWidget(self.label_51, 9, 0, 1, 2)
-        self.horizontalLayout_33 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_33.setObjectName("horizontalLayout_33")
-        self.label_52 = QtWidgets.QLabel(self.groupBox_)
-        self.label_52.setSizeIncrement(QtCore.QSize(6, 7))
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.label_52.setFont(font)
-        self.label_52.setObjectName("label_52")
-        self.horizontalLayout_33.addWidget(self.label_52)
-        self.WindowcomboBox = QtWidgets.QComboBox(self.groupBox_)
-        self.WindowcomboBox.setSizeIncrement(QtCore.QSize(6, 7))
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.WindowcomboBox.setFont(font)
-        self.WindowcomboBox.setEditable(False)
-        self.WindowcomboBox.setMaxCount(2147483646)
-        self.WindowcomboBox.setObjectName("WindowcomboBox")
-        self.WindowcomboBox.addItem("")
-        self.WindowcomboBox.addItem("")
-        self.WindowcomboBox.addItem("")
-        self.horizontalLayout_33.addWidget(self.WindowcomboBox)
-        self.gridLayout.addLayout(self.horizontalLayout_33, 10, 0, 1, 2)
-        self.horizontalLayout_34 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_34.setObjectName("horizontalLayout_34")
-        self.label_53 = QtWidgets.QLabel(self.groupBox_)
-        self.label_53.setSizeIncrement(QtCore.QSize(6, 7))
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.label_53.setFont(font)
-        self.label_53.setObjectName("label_53")
-        self.horizontalLayout_34.addWidget(self.label_53)
-        self.ScalingcomboBox = QtWidgets.QComboBox(self.groupBox_)
-        self.ScalingcomboBox.setSizeIncrement(QtCore.QSize(6, 7))
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        self.ScalingcomboBox.setFont(font)
-        self.ScalingcomboBox.setEditable(False)
-        self.ScalingcomboBox.setMaxCount(2147483646)
-        self.ScalingcomboBox.setObjectName("ScalingcomboBox")
-        self.ScalingcomboBox.addItem("")
-        self.ScalingcomboBox.addItem("")
-        self.horizontalLayout_34.addWidget(self.ScalingcomboBox)
-        self.gridLayout.addLayout(self.horizontalLayout_34, 11, 0, 1, 2)
-        spacerItem7 = QtWidgets.QSpacerItem(20, 21, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem7, 12, 1, 1, 1)
-        self.pbValidate = QtWidgets.QPushButton(self.groupBox_)
+        self.graphsLayout.addWidget(self.mplwindow)
+
+        self.graphsLayout.addWidget(self.graphsGroupBox)
+        self.gridLayout_7.addWidget(self.mplwindow, 1, 1, 1, 1)
+
+
+        # spacerItem7 = QtWidgets.QSpacerItem(20, 21, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        # self.gridLayout.addItem(spacerItem7, 12, 1, 1, 1)
+        # self.pbValidate = QtWidgets.QPushButton(self.groupBox_)
+        # self.pbValidate.setObjectName("pbValidate")
+        # self.gridLayout.addWidget(self.pbValidate, 13, 0, 1, 2)
+        # spacerItem8 = QtWidgets.QSpacerItem(20, 238, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Maximum)
+        # self.gridLayout.addItem(spacerItem8, 14, 1, 1, 1)
+        # self.gridLayout_7.addWidget(self.groupBox_, 0, 0, 1, 1)
+        # self.stackedWidget.addWidget(self.Signal_6)
+
+        # Validate Button
+        self.pbValidate = QtWidgets.QPushButton("Validate")
         self.pbValidate.setObjectName("pbValidate")
-        self.gridLayout.addWidget(self.pbValidate, 13, 0, 1, 2)
-        spacerItem8 = QtWidgets.QSpacerItem(20, 238, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Maximum)
-        self.gridLayout.addItem(spacerItem8, 14, 1, 1, 1)
-        self.gridLayout_7.addWidget(self.groupBox_, 0, 0, 1, 1)
+        self.pbValidate.setToolTip("Apply the selected settings")
+        self.settingsLayout.addWidget(self.pbValidate)
+
+        self.settingsLayout.addWidget(self.settingsGroupBox)
         self.stackedWidget.addWidget(self.Signal_6)
+
+
+
+        # self.Image_6 = QtWidgets.QWidget()
+        # self.Image_6.setObjectName("Image_6")
+        # self.image6Layout = QtWidgets.QHBoxLayout(self.Image_6)
+        #
+        # # Segmentation Controls Panel
+        # self.segmentationControls = QtWidgets.QGroupBox("Image Processing Controls", self.Image_6)
+        # self.segmentationControlsLayout = QtWidgets.QVBoxLayout(self.segmentationControls)
+        #
+        # # Load Image Button
+        # self.btnLoadImage = QtWidgets.QPushButton("Load Image", self.segmentationControls)
+        # self.segmentationControlsLayout.addWidget(self.btnLoadImage)
+
+        # # Segmentation Method Selection
+        # self.methodSelection = QtWidgets.QGroupBox("Select Method", self.segmentationControls)
+        # self.methodLayout = QtWidgets.QVBoxLayout(self.methodSelection)
+        #
+        # self.radioThresholding = QtWidgets.QRadioButton("Thresholding")
+        # self.radioThresholding.setChecked(True)
+        # self.methodLayout.addWidget(self.radioThresholding)
+        #
+        # self.radioRegionGrowing = QtWidgets.QRadioButton("Region Growing")
+        # self.methodLayout.addWidget(self.radioRegionGrowing)
+        #
+        # self.radioML = QtWidgets.QRadioButton("Machine Learning")
+        # self.methodLayout.addWidget(self.radioML)
+        #
+        # self.segmentationControlsLayout.addWidget(self.methodSelection)
+        #
+        # # Parameter Adjustments
+        # self.parametersGroup = QtWidgets.QGroupBox("Parameters", self.segmentationControls)
+        # self.parametersLayout = QtWidgets.QFormLayout(self.parametersGroup)
+        #
+        # self.sliderThreshold = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.parametersGroup)
+        # self.sliderThreshold.setMinimum(0)
+        # self.sliderThreshold.setMaximum(255)
+        # self.sliderThreshold.setValue(128)
+        # self.parametersLayout.addRow("Threshold:", self.sliderThreshold)
+        #
+        # self.spinBoxRegionSize = QtWidgets.QSpinBox(self.parametersGroup)
+        # self.spinBoxRegionSize.setMinimum(1)
+        # self.spinBoxRegionSize.setMaximum(100)
+        # self.parametersLayout.addRow("Region Size:", self.spinBoxRegionSize)
+        #
+        # self.tolerance_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.parametersGroup)
+        # self.tolerance_slider.setMinimum(0)
+        # self.tolerance_slider.setMaximum(255)
+        # self.tolerance_slider.setValue(20)
+        # self.parametersLayout.addRow("Tolerance:", self.tolerance_slider)
+        #
+        # self.spinBoxSeedX = QtWidgets.QSpinBox(self.parametersGroup)
+        # self.spinBoxSeedX.setMinimum(0)
+        # self.spinBoxSeedX.setMaximum(100)  # Dynamic based on loaded image
+        # self.parametersLayout.addRow("Seed X:", self.spinBoxSeedX)
+        #
+        # self.spinBoxSeedY = QtWidgets.QSpinBox(self.parametersGroup)
+        # self.spinBoxSeedY.setMinimum(0)
+        # self.spinBoxSeedY.setMaximum(100)  # Dynamic based on loaded image
+        # self.parametersLayout.addRow("Seed Y:", self.spinBoxSeedY)
+        #
+        # self.segmentationControlsLayout.addWidget(self.parametersGroup)
+        #
+        # # Start Segmentation Button
+        # self.btnStartSegmentation = QtWidgets.QPushButton("Start Segmentation", self.segmentationControls)
+        # self.segmentationControlsLayout.addWidget(self.btnStartSegmentation)
+        #
+        # self.image6Layout.addWidget(self.segmentationControls, stretch=1)
+        #
+        # # Image Display Section
+        # self.imageDisplayGroup = QtWidgets.QGroupBox("Image Display", self.Image_6)
+        # self.imageDisplayLayout = QtWidgets.QVBoxLayout(self.imageDisplayGroup)
+        #
+        # self.labelOriginalImage = QtWidgets.QLabel("Original Image", self.imageDisplayGroup)
+        # self.labelOriginalImage.setAlignment(QtCore.Qt.AlignCenter)
+        # self.labelOriginalImage.setFrameShape(QtWidgets.QFrame.Box)
+        # self.labelOriginalImage.setMinimumSize(400, 300)
+        # self.imageDisplayLayout.addWidget(self.labelOriginalImage)
+        #
+        # self.labelSegmentedImage = QtWidgets.QLabel("Segmented Image", self.imageDisplayGroup)
+        # self.labelSegmentedImage.setAlignment(QtCore.Qt.AlignCenter)
+        # self.labelSegmentedImage.setFrameShape(QtWidgets.QFrame.Box)
+        # self.labelSegmentedImage.setMinimumSize(400, 300)
+        # self.imageDisplayLayout.addWidget(self.labelSegmentedImage)
+
+
+        # self.labelOriginalImage.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # self.labelSegmentedImage.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # self.labelOriginalImage.setScaledContents(True)
+        # self.labelSegmentedImage.setScaledContents(True)
+
+        # self.image6Layout.addWidget(self.imageDisplayGroup, stretch=2)
+
+        # Ensure the layout updates dynamically
+        # self.Image_6.setLayout(self.image6Layout)
+
+        # Grayscale Conversion Button
         self.Image_6 = QtWidgets.QWidget()
         self.Image_6.setObjectName("Image_6")
+
+        # Create the main layout for the Image_6 widget
         self.image6Layout = QtWidgets.QHBoxLayout(self.Image_6)
 
         # Segmentation Controls Panel
-        self.segmentationControls = QtWidgets.QGroupBox("Segmentation Controls", self.Image_6)
+        self.segmentationControls = QtWidgets.QGroupBox("Image Processing Controls", self.Image_6)
         self.segmentationControlsLayout = QtWidgets.QVBoxLayout(self.segmentationControls)
 
-        # Load Image Button
-        self.btnLoadImage = QtWidgets.QPushButton("Load Image", self.segmentationControls)
-        self.segmentationControlsLayout.addWidget(self.btnLoadImage)
-        # Segmentation Method Selection
-        self.methodSelection = QtWidgets.QGroupBox("Select Method", self.segmentationControls)
-        self.methodLayout = QtWidgets.QVBoxLayout(self.methodSelection)
+        ### Load Image Section ###
+        self.loadImageGroup = QtWidgets.QGroupBox("Load Image")
+        self.loadImageLayout = QtWidgets.QVBoxLayout(self.loadImageGroup)
 
-        self.radioThresholding = QtWidgets.QRadioButton("Thresholding")
-        self.radioThresholding.setChecked(True)
-        self.methodLayout.addWidget(self.radioThresholding)
+        self.btnLoadImage = QtWidgets.QPushButton("Load Image", self.loadImageGroup)
+        self.btnLoadImage.setStyleSheet("background-color: #007bff; color: white; padding: 5px; border-radius: 5px;")
 
-        self.radioRegionGrowing = QtWidgets.QRadioButton("Region Growing")
-        self.methodLayout.addWidget(self.radioRegionGrowing)
+        self.loadImageLayout.addWidget(self.btnLoadImage)
 
-        self.radioML = QtWidgets.QRadioButton("Machine Learning")
-        self.methodLayout.addWidget(self.radioML)
+        self.segmentationControlsLayout.addWidget(self.loadImageGroup)
 
-        self.segmentationControlsLayout.addWidget(self.methodSelection)
+        # Grayscale and Thresholding Section
+        self.grayscaleThresholdGroup = QtWidgets.QGroupBox("Intensity Adjustments")
+        self.grayscaleThresholdLayout = QtWidgets.QHBoxLayout(self.grayscaleThresholdGroup)
 
-        # Parameter Adjustments
-        self.parametersGroup = QtWidgets.QGroupBox("Parameters", self.segmentationControls)
-        self.parametersLayout = QtWidgets.QFormLayout(self.parametersGroup)
+        # Grayscale Conversion
+        self.btnGrayscale = QtWidgets.QPushButton("Grayscale", self.grayscaleThresholdGroup)
+        self.grayscaleThresholdLayout.addWidget(self.btnGrayscale)
 
-        self.sliderThreshold = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.parametersGroup)
+        # Thresholding
+        self.thresholdLayout = QtWidgets.QVBoxLayout()
+        self.sliderThreshold = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.grayscaleThresholdGroup)
         self.sliderThreshold.setMinimum(0)
         self.sliderThreshold.setMaximum(255)
         self.sliderThreshold.setValue(128)
-        self.parametersLayout.addRow("Threshold:", self.sliderThreshold)
+        self.thresholdValueLabel = QtWidgets.QLabel(
+                f"Threshold Level: {self.sliderThreshold.value()} (Min: 0, Max: 255)")
 
-        self.spinBoxRegionSize = QtWidgets.QSpinBox(self.parametersGroup)
-        self.spinBoxRegionSize.setMinimum(1)
-        self.spinBoxRegionSize.setMaximum(100)
-        self.parametersLayout.addRow("Region Size:", self.spinBoxRegionSize)
+        self.thresholdLayout.addWidget(self.thresholdValueLabel)
+        self.thresholdLayout.addWidget(self.sliderThreshold)
+        self.grayscaleThresholdLayout.addLayout(self.thresholdLayout)
 
-        self.segmentationControlsLayout.addWidget(self.parametersGroup)
+        self.segmentationControlsLayout.addWidget(self.grayscaleThresholdGroup)
 
-        # Start Segmentation Button
-        self.btnStartSegmentation = QtWidgets.QPushButton("Start Segmentation", self.segmentationControls)
-        self.segmentationControlsLayout.addWidget(self.btnStartSegmentation)
 
+        ### Noise Reduction Group ###
+        self.noiseReductionGroup = QtWidgets.QGroupBox("Noise Reduction")
+        self.noiseReductionLayout = QtWidgets.QHBoxLayout(self.noiseReductionGroup)
+
+        # Denoising
+        self.btnDenoise = QtWidgets.QPushButton("Apply Denoising")
+        self.noiseReductionLayout.addWidget(self.btnDenoise)
+
+        # Blurring
+        self.btnBlur = QtWidgets.QPushButton("Apply Gaussian Blur")
+        self.noiseReductionLayout.addWidget(self.btnBlur)
+
+        self.segmentationControlsLayout.addWidget(self.noiseReductionGroup)
+
+        # Edge Detection Section
+        self.edgeDetectionGroup = QtWidgets.QGroupBox("Edge Detection")
+        self.edgeLayout = QtWidgets.QVBoxLayout(self.edgeDetectionGroup)
+
+        self.btnEdgeDetection = QtWidgets.QPushButton("Apply Canny Edge Detection", self.edgeDetectionGroup)
+        self.edgeLayout.addWidget(self.btnEdgeDetection)
+
+        self.segmentationControlsLayout.addWidget(self.edgeDetectionGroup)
+
+        ### Morphological Operations Section ###
+        self.morphGroup = QtWidgets.QGroupBox("Morphological Operations")
+        self.morphLayout = QtWidgets.QVBoxLayout(self.morphGroup)
+
+        self.btnClearBorders = QtWidgets.QPushButton("Clear Borders")
+        self.morphLayout.addWidget(self.btnClearBorders)
+
+        self.btnRemoveSmallObjects = QtWidgets.QPushButton("Remove Small Objects", self.morphGroup)
+        self.morphLayout.addWidget(self.btnRemoveSmallObjects)
+
+        self.btnFillHoles = QtWidgets.QPushButton("Fill Holes")
+        self.morphLayout.addWidget(self.btnFillHoles)
+
+        self.btnErosion = QtWidgets.QPushButton("Erosion", self.morphGroup)
+        self.morphLayout.addWidget(self.btnErosion)
+
+        self.btnDilation = QtWidgets.QPushButton("Dilation", self.morphGroup)
+        self.morphLayout.addWidget(self.btnDilation)
+
+        self.segmentationControlsLayout.addWidget(self.morphGroup)
+
+        ### Region Properties Section ###
+        self.regionPropsGroup = QtWidgets.QGroupBox("Region Properties")
+        self.regionPropsLayout = QtWidgets.QHBoxLayout(self.regionPropsGroup)
+
+        self.labelRegionProps = QtWidgets.QLabel("Select Properties:")
+        self.regionPropsLayout.addWidget(self.labelRegionProps)
+
+        self.comboRegionProps = QtWidgets.QComboBox(self.regionPropsGroup)
+        self.comboRegionProps.addItems(["Surface Area", "Perimeter", "Eccentricity", "All"])
+        self.regionPropsLayout.addWidget(self.comboRegionProps)
+
+        self.btnCalculateProps = QtWidgets.QPushButton("Calculate Properties")
+        self.regionPropsLayout.addWidget(self.btnCalculateProps)
+
+        self.segmentationControlsLayout.addWidget(self.regionPropsGroup)
+
+
+        # Add controls to the main layout
         self.image6Layout.addWidget(self.segmentationControls)
+
+        ### Right Panel: Image Display and Results Table ###
+        self.rightPanel = QtWidgets.QVBoxLayout()  # Vertical layout for images and table
 
         # Image Display Section
         self.imageDisplayGroup = QtWidgets.QGroupBox("Image Display", self.Image_6)
-        self.imageDisplayLayout = QtWidgets.QVBoxLayout(self.imageDisplayGroup)
+        self.imageDisplayLayout = QtWidgets.QHBoxLayout(self.imageDisplayGroup)
 
-        self.labelOriginalImage = QtWidgets.QLabel("Original Image", self.imageDisplayGroup)
+        # Original Image Display
+        self.labelOriginalImage = QtWidgets.QLabel("Original Image")
         self.labelOriginalImage.setAlignment(QtCore.Qt.AlignCenter)
         self.labelOriginalImage.setFrameShape(QtWidgets.QFrame.Box)
         self.labelOriginalImage.setMinimumSize(400, 300)
         self.imageDisplayLayout.addWidget(self.labelOriginalImage)
 
-        self.labelSegmentedImage = QtWidgets.QLabel("Segmented Image", self.imageDisplayGroup)
-        self.labelSegmentedImage.setAlignment(QtCore.Qt.AlignCenter)
-        self.labelSegmentedImage.setFrameShape(QtWidgets.QFrame.Box)
-        self.labelSegmentedImage.setMinimumSize(400, 300)
-        self.imageDisplayLayout.addWidget(self.labelSegmentedImage)
+        # Processed Image Display
+        self.labelProcessedImage = QtWidgets.QLabel("Processed Image")
+        self.labelProcessedImage.setAlignment(QtCore.Qt.AlignCenter)
+        self.labelProcessedImage.setFrameShape(QtWidgets.QFrame.Box)
+        self.labelProcessedImage.setMinimumSize(400, 300)
+        self.imageDisplayLayout.addWidget(self.labelProcessedImage)
 
-        self.image6Layout.addWidget(self.imageDisplayGroup)
+        # self.labelOriginalImage.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # self.labelProcessedImage.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.labelOriginalImage.setScaledContents(True)
+        self.labelProcessedImage.setScaledContents(True)
 
-        # Ensure the layout updates dynamically
+        self.rightPanel.addWidget(self.imageDisplayGroup)
+
+        # Add displays to the main layout
+        # self.image6Layout.addWidget(self.imageDisplayGroup)
+
+        ### Results Table Section (Now below the Image Display) ###
+        self.tableGroup = QtWidgets.QGroupBox("Results Table", self.Image_6)
+        self.tableLayout = QtWidgets.QVBoxLayout(self.tableGroup)
+
+        self.resultTable = QtWidgets.QTableWidget(self.tableGroup)
+        self.resultTable.setColumnCount(4)  # Adjust columns for properties dynamically
+        self.resultTable.setHorizontalHeaderLabels(["Object ID", "Surface Area", "Perimeter", "Eccentricity"])
+        self.tableLayout.addWidget(self.resultTable)
+
+        # Add the results table below the image display
+        self.rightPanel.addWidget(self.tableGroup)        # Set layout for Image_6
+
+        # Export Button
+        self.btnExportResults = QtWidgets.QPushButton("Export Results", self.tableGroup)
+        self.btnExportResults.setToolTip("Export the table data")
+        self.tableLayout.addWidget(self.btnExportResults)
+
+        # Add the right panel to the main layout
+        self.image6Layout.addLayout(self.rightPanel)
+
         self.Image_6.setLayout(self.image6Layout)
+        # Additional Widgets for Clear, Undo, and Redo
+        self.actionGroup = QtWidgets.QGroupBox("Actions")
+        self.actionLayout = QtWidgets.QHBoxLayout(self.actionGroup)
+
+        # Clear Display Button
+        self.btnClearDisplay = QtWidgets.QPushButton("Clear Display")
+        self.btnClearDisplay.setToolTip("Clear the images and results table")
+        self.actionLayout.addWidget(self.btnClearDisplay)
+
+        # Undo Button
+        self.btnUndo = QtWidgets.QPushButton("Undo")
+        self.btnUndo.setToolTip("Revert to the previous operation")
+        self.actionLayout.addWidget(self.btnUndo)
+
+        # Redo Button
+        self.btnRedo = QtWidgets.QPushButton("Redo")
+        self.btnRedo.setToolTip("Redo the last undone operation")
+        self.actionLayout.addWidget(self.btnRedo)
+
+        self.segmentationControlsLayout.addWidget(self.actionGroup)
+
         self.horizontalLayout_panel1 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_panel1.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
         self.horizontalLayout_panel1.setObjectName("horizontalLayout_panel1")
@@ -579,24 +989,26 @@ class Ui_MainWindow(object):
         self.pbDataAnalysis2.setText(_translate("MainWindow", "Data Analysis"))
         self.pbSpectrumAnalysis2.setText(_translate("MainWindow", "Spectrum Analysis"))
         self.pbImageProcessing2.setText(_translate("MainWindow", "Image Processing"))
-        self.ECGlabel.setText(_translate("MainWindow", "ECG Signal Analysis"))
+        # self.ECGlabel.setText(_translate("MainWindow", "ECG Signal Analysis"))
         self.label_46.setText(_translate("MainWindow", "Data Management"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Tab 1"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Tab 2"))
-        self.groupBox_.setTitle(_translate("MainWindow", "Settings"))
+        # self.groupBox_.setTitle(_translate("MainWindow", "Settings"))
         self.LoadBtnsignal.setText(_translate("MainWindow", "Load Data"))
+        self.LoadBtnsignal.setToolTip("Click to load ECG signal data.")
         self.label_3.setText(_translate("MainWindow", "Go to:"))
         self.timeInput.setText(_translate("MainWindow", "00:00:00"))
         self.label_2.setText(_translate("MainWindow", "Window duration:"))
-        self.sliderLabel.setText(_translate("MainWindow", "5 seconds"))
-        self.label_48.setText(_translate("MainWindow", "Parameters"))
-        self.label_49.setText(_translate("MainWindow", "Fast Fourier Transform"))
+        # self.windowDurationSlider.setText(_translate("MainWindow", "5 seconds"))
+        # self.label_48.setText(_translate("MainWindow", "Parameters"))
+        # self.label_49.setText(_translate("MainWindow", "Fast Fourier Transform"))
         self.label_50.setText(_translate("MainWindow", "Norm"))
         self.NormcomboBox.setCurrentText(_translate("MainWindow", "backward"))
         self.NormcomboBox.setItemText(0, _translate("MainWindow", "backward"))
         self.NormcomboBox.setItemText(1, _translate("MainWindow", "ortho"))
         self.NormcomboBox.setItemText(2, _translate("MainWindow", "forward"))
-        self.label_51.setText(_translate("MainWindow", "Periodogram"))
+        self.NormcomboBox.setToolTip("Select the norm for the Fourier Transform.")
+        # self.label_51.setText(_translate("MainWindow", "Periodogram"))
         self.label_52.setText(_translate("MainWindow", "Window"))
         self.WindowcomboBox.setCurrentText(_translate("MainWindow", "boxcar"))
         self.WindowcomboBox.setItemText(0, _translate("MainWindow", "boxcar"))
@@ -608,7 +1020,7 @@ class Ui_MainWindow(object):
         self.ScalingcomboBox.setItemText(0, _translate("MainWindow", "density"))
         self.ScalingcomboBox.setItemText(1, _translate("MainWindow", "spectrum"))
         self.pbValidate.setText(_translate("MainWindow", "Validate"))
-        # self.uipanel2.setTitle(_translate("MainWindow", "Image Preview"))
+        # # self.uipanel2.setTitle(_translate("MainWindow", "Image Preview"))
         # self.uipanel1.setTitle(_translate("MainWindow", "Settings"))
         # self.rbFaces.setText(_translate("MainWindow", "Faces"))
         # self.rbPoints.setText(_translate("MainWindow", "Points"))
