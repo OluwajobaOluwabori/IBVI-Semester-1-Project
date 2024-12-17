@@ -13,6 +13,18 @@ from scipy.signal.windows import hamming, hann, boxcar
 from scipy.signal import find_peaks
 # from tensorflow.keras.models import load_model
 from PIL import Image
+from skimage.segmentation import flood
+from skimage.morphology import erosion,dilation,remove_small_objects
+from scipy.ndimage import binary_fill_holes
+from skimage.measure import label, regionprops, regionprops_table
+from skimage.segmentation import clear_border
+from scipy.ndimage import binary_fill_holes
+import csv
+import json
+
+
+
+
 
 import openpyxl
 
@@ -38,7 +50,8 @@ from numpy import *
 from ProjectS1v1GUI import Ui_MainWindow
 # import tensorflow as tf
 # from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate
-
+from skimage.io import imread, imshow
+import skimage.morphology as morph
 
 b_Canvas = False
 
@@ -46,6 +59,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super(MyMainWindow, self).__init__(parent)
         QMainWindow.__init__(self, parent)
+        self.processed_image = None
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
@@ -71,8 +85,31 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.NormcomboBox.currentTextChanged.connect(self.plotSignal)
         self.ui.pbValidate.clicked.connect(self.updateMainWindow)
 
-        # Link the clicked action from the button to a function to read jpg image
-        self.ui.btnLoadImage.clicked.connect(self.loadImage)
+        # Signals and Slots
+        self.ui.btnLoadImage.clicked.connect(self.load_image)
+        self.ui.btnGrayscale.clicked.connect(self.convert_to_grayscale)
+        self.ui.btnDenoise.clicked.connect(self.apply_denoising)
+        self.ui.btnBlur.clicked.connect(self.apply_blurring)
+        self.ui.btnEdgeDetection.clicked.connect(self.apply_canny_edge)
+        self.ui.sliderThreshold.valueChanged.connect(self.apply_thresholding)
+
+
+        self.ui.btnClearBorders.clicked.connect(self.clear_borders)
+        self.ui.btnFillHoles.clicked.connect(self.fill_holes)
+        self.ui.btnRemoveSmallObjects.clicked.connect(self.remove_small_objects)
+        self.ui.btnErosion.clicked.connect(self.apply_erosion)
+        self.ui.btnDilation.clicked.connect(self.apply_dilation)
+        self.ui.btnCalculateProps.clicked.connect(self.calculate_properties)
+        self.ui.btnExportResults.clicked.connect(self.export_results)
+
+        self.ui.btnClearDisplay.clicked.connect(self.clear_display)
+        self.ui.btnUndo.clicked.connect(self.undo_action)
+        self.ui.btnRedo.clicked.connect(self.redo_action)
+        self.ui.btnRedo.setEnabled(False)
+        self.ui.btnUndo.setEnabled(False)
+        self.ui.btnClearDisplay.setEnabled(False)
+
+
 
         # Link the clicked action from the button to a function to read excel file
         self.ui.LoadBtn_excel.clicked.connect(self.loadExcelData)
@@ -95,6 +132,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.canvas = None
         self.toolbar = None
 
+        self.history = []  # Stack for undo
+        self.redo_stack = []  # Stack for redo
 
 
 
@@ -129,11 +168,18 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 # Read and extract values from Excel
                 self.data = wfdb.rdrecord(self.myPath)
                 self.signal = self.data.p_signal[:, 0]
+                self.signal = self.signal - mean(self.signal)
                 self.data.fs = self.data.fs
                 self.data.n_sig = self.data.n_sig
                 duration = len(self.signal) / self.data.fs  # Duration in seconds
                 self.time = np.linspace(0, duration, len(self.signal))
                 mean_signal = np.mean(self.signal)
+
+                # Detect R-peaks with a height threshold
+                threshold = np.mean(self.signal) + 0.5 * np.std(self.signal)
+                self.peaks, _ = find_peaks(self.signal, height=threshold)
+                print(f"Potential heartbeat matches: {self.peaks}")
+
                 print(f'The average signal value is : {mean_signal:.2f}')
 
                 # Plot the loaded data and initial FFT and periodogram
@@ -186,6 +232,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 segment = self.signal[start_index:end_index]
                 segment_time = self.time[start_index:end_index]
 
+                peaks_indices = [i for i in self.peaks if start_index <= i < end_index]
+                peaks_indices = np.array(peaks_indices) - start_index  # Adjust indices to the segment
+
                 # Format time to hh:mm:ss for x-axis
                 formatted_time = [time.strftime("%H:%M:%S", time.gmtime(t)) for t in segment_time]
 
@@ -193,9 +242,10 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 fig, ax = plt.subplots(1, 3, figsize=(10, 5))  # Create one figure with 3 subplots
 
                 # Plot Signal
-                ax[0].plot(formatted_time, segment)
-                ax[0].set_title(f"Signal (Start: {start_time}s, Duration: {window_duration}s)")
-                ax[0].set_xlabel('Time (hh:mm:ss)')
+                ax[0].plot(segment_time, segment)
+                ax[0].plot(segment_time[peaks_indices], segment[peaks_indices], "x", label='Peaks')
+                ax[0].set_title(f"Signal (Duration: {window_duration}s, Start: {start_time}s, Stop: {start_time + window_duration}s)")
+                ax[0].set_xlabel('Time (s)')
                 ax[0].set_ylabel('Amplitude')
                 ax[0].tick_params(axis='x', rotation=45)  # Rotate x-axis labels for readability
                 # ax[0].xaxis.set_major_locator(plt.MaxNLocator(10))  # Adjust number of x-ticks
@@ -214,34 +264,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 # for tick in ax.yaxis.get_major_ticks():
                 #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
 
-
-                # Periodogram
-                scaling_value = self.ui.ScalingcomboBox.currentText()
-                window_value = self.ui.WindowcomboBox.currentText()
-
-                # f, Pxx = periodogram(self.signal, fs=self.data.fs, scaling=scaling_value,
-                #                      window=window_value)
-                f, Pxx = periodogram(segment, fs=self.data.fs, scaling=scaling_value, window=window_value)
-
-                Pxx_dB = 10 * np.log10(Pxx)  # Convert power to dB
-
-
-                ax[1].clear()
-                ax[1].plot(f, Pxx_dB)
-                ax[1].set_title(f'Periodogram of the Signal\n Window Type = {window_value}, Scaling = {scaling_value}'
-                          )
-                ax[1].set_xlabel('Frequency (Hz)')
-                if scaling_value == 'spectrum':
-                    ax[1].set_ylabel('Power(dB/Hz)')
-                else:
-                    ax[1].set_ylabel('Power/Frequency (dB/Hz)')
-                # for tick in ax.xaxis.get_major_ticks():
-                #     tick.label.set_fontsize(18)  # Adjust the fontsize for x ticks
-                #
-                # for tick in ax.yaxis.get_major_ticks():
-                #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
-
-
                 # FFT
                 # Get the selected window and scaling values
                 norm_value = self.ui.NormcomboBox.currentText()
@@ -258,22 +280,45 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 positive_fft_values = np.abs(fft_values[:n // 2])  # Magnitude of the FFT
 
                 # Step 4: Plot the FFT
-                # fig = Figure(figsize(6, 6))
-                # ax = fig.add_subplot(133)
+                ax[1].clear()
+                ax[1].plot(positive_frequencies, positive_fft_values)
+                ax[1].set_title(f'Frequency Spectrum of the Signal\n Norm = {norm_value}')
+                ax[1].set_xlabel('Frequency (Hz)')
+                ax[1].set_ylabel('Amplitude')
+                # Periodogram
+                scaling_value = self.ui.ScalingcomboBox.currentText()
+                window_value = self.ui.WindowcomboBox.currentText()
+
+                # f, Pxx = periodogram(self.signal, fs=self.data.fs, scaling=scaling_value,
+                #                      window=window_value)
+                f, Pxx = periodogram(segment, fs=self.data.fs, scaling=scaling_value, window=window_value)
+
+                Pxx_dB = 10 * np.log10(Pxx)  # Convert power to dB
+
+
                 ax[2].clear()
-                ax[2].plot(positive_frequencies, positive_fft_values)
-                ax[2].set_title(f'Frequency Spectrum of the Signal\n Norm = {norm_value}')
+                ax[2].plot(f, Pxx_dB)
+                ax[2].set_title(f'Periodogram of the Signal\n Window Type = {window_value}, Scaling = {scaling_value}'
+                          )
                 ax[2].set_xlabel('Frequency (Hz)')
-                ax[2].set_ylabel('Amplitude')
+                if scaling_value == 'spectrum':
+                    ax[2].set_ylabel('Power(dB/Hz)')
+                else:
+                    ax[2].set_ylabel('Power/Frequency (dB/Hz)')
+                # for tick in ax.xaxis.get_major_ticks():
+                #     tick.label.set_fontsize(18)  # Adjust the fontsize for x ticks
+                #
+                # for tick in ax.yaxis.get_major_ticks():
+                #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
+
+
+
                 fig.tight_layout()
                 self.canvas = FigureCanvas(fig)
                 layout = self.ui.mplwindow.layout()
                 layout.addWidget(self.canvas)
                 self.canvas.draw()
                 self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow, coordinates=True)
-                # layout.addWidget(self.toolbar)
-                # Add toolbar at the top
-                # self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow)
                 layout.insertWidget(0, self.toolbar)  # Insert at the top of the layout
 
             except Exception as e:
@@ -286,104 +331,400 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             rounded_value = round(value / step) * step  # Round to the nearest step
             if value != rounded_value:  # Avoid infinite loops
                 self.ui.windowDurationSlider.setValue(rounded_value)
-            self.ui.sliderLabel.setText(f"{rounded_value} seconds")
+            self.ui.windowDurationSlider.setText(f"{rounded_value} seconds")
         except Exception as e:
             print(e)
 
-
-    def loadImage(self):
+    def load_image(self):
         try:
-            myDlg = QFileDialog.getOpenFileName(None, "Load Image", "", "Images (*.png *.jpg *.bmp)")
-            self.myPath = myDlg[0] # Path + file + extension
-            if self.myPath:
-                # Load and display image
+            """Load an image and display it in the Original Image label."""
+            options = QFileDialog.Options()
+            file_path, _ = QFileDialog.getOpenFileName(self, "Open Image File", "",
+                                                       "Images (*.png *.jpg *.bmp)", options=options)
+            if file_path:
+                self.original_image = cv2.imread(file_path)
+                self.original_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2RGB)
 
-                image = cv2.imread(self.myPath, cv2.IMREAD_GRAYSCALE)
-                image = image / 255.0 # Normalize pixel values
-                denoised_image = cv2.GaussianBlur(image, (5, 5), 0)  # Apply Gaussian blur for noise reduction
-                # Enhance contrast using CLAHE
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-                contrast_enhanced = clahe.apply((denoised_image * 255).astype(np.uint8))
-                Image.fromarray(contrast_enhanced).save('image.png')
-                pixmap = QtGui.QPixmap("image.png")
-                self.ui.labelOriginalImage.setPixmap(pixmap.scaled(self.ui.labelOriginalImage.size(), QtCore.Qt.KeepAspectRatio))
+                self.processed_image = self.original_image.copy()
+                self.display_image(self.original_image, self.ui.labelOriginalImage)
+                self.ui.btnClearDisplay.setEnabled(True)
+                # self.save_state()
 
-            # Show success message box
+                # Show success message box
             QMessageBox.information(self, "Success", "Image successfully loaded!")
+        except Exception as e:
+            print(e)
 
+    def display_image(self, image, label):
+        """Utility to display an image in a QLabel."""
+        if len(image.shape) == 3:
+            # Color images with alpha channel
+            if (image.shape[2]) == 4:
+                qformat = QImage.Format_RGBA8888
+            # Color images
+            else:
+                qformat = QImage.Format_RGB888
+            h, w, ch = image.shape
+            bytes_per_line = ch * w  # channel * width, also known as strides
+            q_image = QtGui.QImage(image.data, w, h, bytes_per_line, qformat)
+        else:
+            # Grayscale images
+            qformat = QImage.Format_Indexed8
+            q_image = QImage(image, image.shape[1], image.shape[0], image.strides[0], qformat)
+
+        # height, width, channel = image.shape
+        # bytes_per_line = 3 * width
+        # q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+
+        label.setPixmap(QPixmap.fromImage(q_image).scaled(label.width(), label.height(), Qt.KeepAspectRatio))
+
+    def convert_to_grayscale(self):
+        """Convert the image to grayscale."""
+        try:
+            # Convert the processed image to grayscale and then to a binary image
+            self.processed_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.ui.btnRedo.setEnabled(False)
+            self.save_state()
+
+        except Exception as e:
+            print(f'Invalid format: Cannot convert to grayscale!{e}')
+
+    def apply_thresholding(self):
+        """Apply thresholding based on slider value."""
+        if hasattr(self, 'original_image'):
+            gray_image = cv2.cvtColor(self.original_image, cv2.COLOR_RGB2GRAY)
+            _, thresholded = cv2.threshold(gray_image, self.ui.sliderThreshold.value(), 255, cv2.THRESH_BINARY)
+            self.processed_image = cv2.cvtColor(thresholded, cv2.COLOR_GRAY2RGB)
+            self.ui.thresholdValueLabel.setText(f"Threshold Level: {self.ui.sliderThreshold.value()} (Min: 0, Max: 255)")
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.ui.btnRedo.setEnabled(False)
+            self.save_state()
+
+
+    def apply_blurring(self):
+        """Apply a selected blur filter to the image."""
+        if hasattr(self, 'original_image'):
+            self.processed_image = cv2.GaussianBlur(self.processed_image, (5, 5), 0)
+        else :
+            self.processed_image = cv2.GaussianBlur(self.original_image, (5, 5), 0)
+        self.display_image(self.processed_image, self.ui.labelProcessedImage)
+        self.ui.btnRedo.setEnabled(False)
+        self.save_state()
+
+    def apply_denoising(self):
+        try:
+            if len(self.processed_image.shape) == 3:  # Convert to grayscale if RGB
+                gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray_image = self.processed_image
+            self.processed_image = cv2.fastNlMeansDenoising(gray_image, None, 10, 7, 21)
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.ui.btnRedo.setEnabled(False)
+            self.save_state()
+
+        except Exception as e:
+            print(f"Error in denoising: {e}")
+
+
+    def apply_canny_edge(self):
+        try:
+            if len(self.processed_image.shape) == 3:  # Convert to grayscale if RGB
+                gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray_image = self.processed_image
+            self.processed_image = cv2.Canny(gray_image, 70, 135)
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.save_state()
+            self.ui.btnRedo.setEnabled(False)
+
+        except Exception as e:
+            print(f"Error in edge detection: {e}")
+
+    # Morphological Operations
+
+    def clear_borders(self):
+        """Clear borders of objects in the image."""
+        try:
+            if len(self.processed_image.shape) == 3:
+                # Convert the processed image to grayscale and then to a binary image
+                self.processed_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            _, self.processed_image = cv2.threshold(self.processed_image, 127, 255, cv2.THRESH_BINARY)
+            labelled = label(self.processed_image)  # label all the constituents
+            cleared = clear_border(labelled)
+            self.processed_image = (cleared > 0).astype(np.uint8) * 255  # Convert back to binary
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.save_state()
+            self.ui.btnRedo.setEnabled(False)
 
         except Exception as e:
             print(e)
-            QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
 
-    import os
-    import cv2
-    import numpy as np
+    def fill_holes(self):
+        """Fill holes in the objects of the image."""
+        try:
+            # Convert to grayscale if necessary
+            if len(self.processed_image.shape) == 3:  # RGB
+                gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray_image = self.processed_image
+            _, binary_image = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
+            self.processed_image = binary_fill_holes(binary_image).astype(np.uint8) * 255
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.save_state()
+            self.ui.btnRedo.setEnabled(False)
 
-    # Assign unique labels to each organ
-    organ_labels = {
-        "abdominal": 1,
-        "colon": 2,
-        "liver": 3,
-        "pancreas": 4,
-        "small": 5,
-        "spleen": 6,
-        "stomach": 7
-    }
+        except Exception as e:
+            print(e)
 
-    def load_and_preprocess(data_dir, target_size=(128, 128)):
-        images = []
-        masks = []
-        organ_labels = {
-            "abdominal": 1,
-            "colon": 2,
-            "liver": 3,
-            "pancreas": 4,
-            "small": 5,
-            "spleen": 6,
-            "stomach": 7
-        }
-        for folder in os.listdir(data_dir):
-            folder_path = os.path.join(data_dir, folder)
+    def remove_small_objects(self):
+        try:
+            if len(self.processed_image.shape) == 3:  # Convert to grayscale if RGB
+                gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray_image = self.processed_image
+            _, binary_image = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
+            labelled = label(binary_image)
+            cleaned = remove_small_objects(labelled, min_size=500)
+            self.processed_image = (cleaned > 0).astype(np.uint8) * 255  # Convert back to binary
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.save_state()
+            self.ui.btnRedo.setEnabled(False)
 
-            # Load images
-            image_path = os.path.join(folder_path, "images")
-            for img_file in os.listdir(image_path):
-                img = cv2.imread(os.path.join(image_path, img_file))  # BGR
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                img = cv2.resize(img, target_size) / 255.0  # Normalize
-                images.append(img)
+        except Exception as e:
+            print(f"Error in removing small objects: {e}")
 
-                # Load masks
-                mask_prefix = img_file.split('.')[0][5:]
-                mask_path = os.path.join(folder_path, "masks")
-                combined_mask = np.zeros(target_size, dtype=np.uint8)
-                for organ, label in organ_labels.items():
-                    organ_mask_file = f"mask{mask_prefix}_{organ}.png"
-                    organ_mask_path = os.path.join(mask_path, organ_mask_file)
-                    if os.path.exists(organ_mask_path):
-                        organ_mask = cv2.imread(organ_mask_path, cv2.IMREAD_GRAYSCALE)
-                        organ_mask = cv2.resize(organ_mask, target_size)
-                        combined_mask[organ_mask > 0] = label
-                masks.append(combined_mask)
-                # plt.subplot(1, 2, 1)
-                # plt.title("Original Image")
-                # plt.imshow(images[-1], cmap='gray')
-                # plt.subplot(1, 2, 2)
-                # plt.title("Preprocessed Image")
-                # plt.imshow(masks[-1], cmap='gray')
-                # plt.show()
-        return np.array(images), np.array(masks)
-    #
-    # # Load dataset
-    # dataset_dir = "train"
-    # X, Y = load_and_preprocess(dataset_dir)
-    #
-    # # # Adjust mask dimensions
-    # Y = np.expand_dims(Y, axis=-1)
+    def apply_erosion(self):
+        self.processed_image = erosion(self.processed_image)
+        self.display_image(self.processed_image, self.ui.labelProcessedImage)
+        self.save_state()
 
-    # model = load_model("unet_pretrained_model1.h5")
+    def apply_dilation(self):
+        self.processed_image = dilation(self.processed_image)
+        self.display_image(self.processed_image, self.ui.labelProcessedImage)
+        self.ui.btnRedo.setEnabled(False)
+        self.save_state()
 
+    def calculate_properties(self):
+        """Calculate region properties based on user selection."""
+        if len(self.processed_image.shape) == 3:
+                # Convert the processed image to grayscale and then to a binary image
+            self.processed_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+        _, binary_image = cv2.threshold(self.processed_image, 127, 255, cv2.THRESH_OTSU)
+
+        # Label connected regions
+        labeled_image = label(binary_image)
+        props = regionprops(labeled_image)
+
+        # Determine selected properties
+        selected_property = self.ui.comboRegionProps.currentText()
+        selected_properties = []
+        if selected_property == "All":
+            selected_properties = ["area", "perimeter", "eccentricity"]
+        else:
+            selected_properties.append(
+                "area" if selected_property == "Surface Area" else selected_property.lower()
+            )
+        # Extract properties
+        data = []
+        for i, region in enumerate(props, 1):
+            row = {"Object ID": i}
+            for prop in selected_properties:
+                if hasattr(region, prop):
+                    row[prop] = getattr(region, prop)
+            data.append(row)
+
+            # Populate the results table
+        self.populate_table(data, selected_properties)
+
+    def populate_table(self, data, selected_properties):
+        """Populate the result table with calculated properties."""
+        try:
+            # Prepare the table headers
+            headers = ["Object ID"] + [prop.capitalize() for prop in selected_properties]
+            self.ui.resultTable.setColumnCount(len(headers))
+            self.ui.resultTable.setHorizontalHeaderLabels(headers)
+
+            # Populate table rows
+            self.ui.resultTable.setRowCount(len(data))
+            for row_idx, row_data in enumerate(data):
+                self.ui.resultTable.setItem(row_idx, 0, QtWidgets.QTableWidgetItem(str(row_data["Object ID"])))
+                for col_idx, prop in enumerate(selected_properties, start=1):
+                    value = row_data.get(prop, "N/A")
+                    self.ui.resultTable.setItem(row_idx, col_idx, QtWidgets.QTableWidgetItem(
+                        f"{value:.2f}" if isinstance(value, float) else str(value)))
+        except Exception as e:
+            print(f"Error populating table: {e}")
+
+    def export_results(self):
+        """Exports the results in the table to CSV, Excel, or JSON format."""
+        # Open a file dialog to choose export location and file type
+        file_path, selected_filter = QtWidgets.QFileDialog.getSaveFileName(
+            None,
+            "Export Results",
+            "",
+            "CSV Files (*.csv);;Excel Files (*.xlsx);;JSON Files (*.json)"
+        )
+        if not file_path:
+            return  # User canceled the dialog
+        # Proceed only if a file path is selected
+        if file_path:
+            try:
+                if selected_filter == "CSV Files (*.csv)" or file_path.endswith('.csv'):
+                    with open(file_path, mode='w', newline='', encoding='utf-8') as file:
+                        writer = csv.writer(file)
+                        # Write headers
+                        header = [self.ui.resultTable.horizontalHeaderItem(i).text() for i in
+                                  range(self.ui.resultTable.columnCount())]
+                        writer.writerow(header)
+                        # Write table data
+                        for row in range(self.ui.resultTable.rowCount()):
+                            row_data = [
+                                self.ui.resultTable.item(row, col).text() if self.ui.resultTable.item(row, col) else ''
+                                for col in range(self.ui.resultTable.columnCount())
+                            ]
+                            writer.writerow(row_data)
+                    QtWidgets.QMessageBox.information(None, "Export Successful", "Results exported successfully to CSV!")
+                elif selected_filter == "Excel Files (*.xlsx)" or file_path.endswith('.xlsx'):
+                    data = []
+                    for row in range(self.ui.resultTable.rowCount()):
+                        row_data = [
+                            self.ui.resultTable.item(row, col).text() if self.ui.resultTable.item(row, col) else ''
+                            for col in range(self.ui.resultTable.columnCount())
+                        ]
+                        data.append(row_data)
+                    # Convert to DataFrame and save
+                    header = [self.ui.resultTable.horizontalHeaderItem(i).text() for i in range(self.ui.resultTable.columnCount())]
+                    df = pd.DataFrame(data, columns=header)
+                    df.to_excel(file_path, index=False)
+                    QtWidgets.QMessageBox.information(None, "Export Successful", "Results exported successfully to Excel!")
+                elif selected_filter == "JSON Files (*.json)" or file_path.endswith('.json'):
+                    # Extract data from table
+                    data = []
+                    for row in range(self.ui.resultTable.rowCount()):
+                        row_data = {
+                            self.ui.resultTable.horizontalHeaderItem(col).text():
+                                self.resultTable.item(row, col).text() if self.ui.resultTable.item(row, col) else ''
+                            for col in range(self.ui.resultTable.columnCount())
+                        }
+                        data.append(row_data)
+                    # Write JSON
+                    with open(file_path, mode='w', encoding='utf-8') as file:
+                        json.dump(data, file, indent=4)
+                    QtWidgets.QMessageBox.information(None, "Export Successful", "Results exported successfully to JSON!")
+
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(None, "Export Failed", f"An error occurred while exporting to {selected_filter}:\n{str(e)}")
+
+    def clear_display(self):
+        # Clear image display
+        self.ui.labelOriginalImage.clear()
+        self.ui.labelOriginalImage.setText("Original Image")
+        self.ui.labelProcessedImage.clear()
+        self.ui.labelProcessedImage.setText("Processed Image")
+
+        # Clear results table
+        self.ui.resultTable.setRowCount(0)
+
+        # Reset internal states (if any)
+        self.original_image = None
+        self.processed_image = None
+
+
+    def save_state(self):
+        """Save the current state for undo."""
+        try:
+            if self.processed_image is not None:
+                self.history.append(self.processed_image.copy())
+                # self.redo_stack.clear()  # Clear redo stack after a new operation
+                # Enable the Undo button after an image change
+                self.ui.btnUndo.setEnabled(True)
+                # After updating, disable the Redo button since a new change is made
+                # self.ui.btnRedo.setEnabled(False)
+                # self.close()
+        except Exception as e:
+            print(e)
+
+    def undo_action(self):
+        """Undo the last operation."""
+        try:
+            if len(self.history) > 0:
+                self.redo_stack.append(self.processed_image.copy())  # Save current state for redo
+                self.processed_image = self.history.pop()
+                # self.display_image(self.processed_image, self.ui.labelProcessedImage)
+                self.update_display()
+                # Enable the Redo button now that an action can be redone
+                self.ui.btnRedo.setEnabled(True)
+
+                # Disable Undo button if there are no more actions to undo
+            if len(self.history) == 0:
+                self.ui.btnUndo.setEnabled(False)
+        except Exception as e:
+            print(e)
+
+    def redo_action(self):
+        """Redo the last undone operation."""
+        if len(self.redo_stack) > 0:
+            self.history.append(self.processed_image.copy())  # Save current state for undo
+            self.processed_image = self.redo_stack.pop()
+            # self.update_display()
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            # Disable Redo button if there are no more actions to redo
+        if len(self.redo_stack) == 0:
+            self.ui.btnRedo.setEnabled(False)
+
+    def update_display(self):
+        """Update the processed image display."""
+        if self.processed_image is not None:
+            self.history.append(self.processed_image.copy())
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            # # Enable the Undo button after an image change
+            # self.ui.btnUndo.setEnabled(True)
+            # # After updating, disable the Redo button since a new change is made
+            # self.ui.btnRedo.setEnabled(False)
+
+    # Thresholding function
+    def apply_threshold(self, image, threshold):
+
+        # Convert to grayscale if necessary
+        if len(image.shape) == 3:  # RGB
+            gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        else:
+            gray_image = image
+
+        # Apply thresholding
+        _, thresholded_image = cv2.threshold(gray_image, threshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        return thresholded_image
+
+
+
+    # Function to convert NumPy array to QPixmap
+    def numpy_to_qpixmap(self,array):
+        # Scale the array to 0-255 if necessary (e.g., if it's 0-1 or class IDs)
+        if np.max(array) <= 1:
+            array = (array * 255).astype(np.uint8)
+
+        # Convert to RGB if it's single-channel
+        if len(array.shape) == 2:  # Grayscale
+            array = np.stack((array,) * 3, axis=-1)
+
+        # Convert to QImage
+        h, w, ch = array.shape
+        qimage = QImage(array.data, w, h, ch * w, QImage.Format_RGB888)
+
+        # Convert to QPixmap
+        return QPixmap.fromImage(qimage)
+
+    def update_threshold(self, value):
+        try:
+            # Apply thresholding and update display
+            thresholded = self.apply_threshold(self.contrast_enhanced, value)
+            pixmap = self.numpy_to_qpixmap(thresholded)
+            self.ui.labelSegmentedImage.setPixmap(pixmap.scaled(self.ui.labelSegmentedImage.size(), QtCore.Qt.KeepAspectRatio))
+            # self.ui.labelOriginalImage.setPixmap(self.pixmap.scaled(self.ui.labelOriginalImage.size(), QtCore.Qt.KeepAspectRatio))
+
+        except Exception as e:
+            print(e)
 
     def loadExcelData(self):
         try:
