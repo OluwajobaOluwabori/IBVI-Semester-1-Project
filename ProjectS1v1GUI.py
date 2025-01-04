@@ -1118,7 +1118,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.pbDataManagement2.setText(_translate("MainWindow", "Patient Data Management"))
+        self.pbDataManagement2.setText(_translate("MainWindow", "Data Management"))
         self.pbDataAnalysis2.setText(_translate("MainWindow", "Data Analysis"))
         self.pbSpectrumAnalysis2.setText(_translate("MainWindow", "Spectrum Analysis"))
         self.pbImageProcessing2.setText(_translate("MainWindow", "Image Processing"))
@@ -1155,12 +1155,7 @@ class Ui_MainWindow(object):
         # self.pbValidate.setText(_translate("MainWindow", "Validate"))
         # # self.uipanel2.setTitle(_translate("MainWindow", "Image Preview"))
         # self.uipanel1.setTitle(_translate("MainWindow", "Settings"))
-        # self.rbFaces.setText(_translate("MainWindow", "Faces"))
-        # self.rbPoints.setText(_translate("MainWindow", "Points"))
-        # self.rbWire.setText(_translate("MainWindow", "Wireframe"))
-        # self.uipanelbackground.setTitle(_translate("MainWindow", "Background Color"))
-#         self.rbWhite.setText(_translate("MainWindow", "Black"))
-#         self.rbBlack.setText(_translate("MainWindow", "White"))
+
 import resources_rc
 
 
