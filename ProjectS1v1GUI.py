@@ -36,21 +36,22 @@ class Ui_MainWindow(object):
         self.horizontalLayout_8.setSpacing(0)
         self.horizontalLayout_8.setObjectName("horizontalLayout_8")
         self.icon_only_widget = QtWidgets.QWidget(self.centralwidget)
-        self.icon_only_widget.setMinimumSize(QtCore.QSize(0, 561))
-        self.icon_only_widget.setStyleSheet("QWidget{background-color:rgb(230, 237, 237);\n"
-"}\n"
-"QPushButton{text-align:left;color:gray;height:15px;border:none;padding-left:5px;border-top-left-radius:10px;border-bottom-left-radius:10px;border-radius:10px;}QLabel{color:gray;}\n"
-"QPushButton:checked{background-color: #F5FAFE;\n"
-"color:#1F95EF; font-weight:bold;\n"
-"}")
+        self.icon_only_widget.setMinimumWidth(50)
+        self.icon_only_widget.setStyleSheet("""
+                    QWidget { background-color: rgb(230, 237, 237); }
+                    QPushButton { text-align: left; color: gray; height: 15px; border: none; padding-left: 5px; }
+                    QPushButton:checked { background-color: #F5FAFE; color: #1F95EF; font-weight: bold; }
+                """)
+
         self.icon_only_widget.setObjectName("icon_only_widget")
-        self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.icon_only_widget)
-        self.verticalLayout_3.setContentsMargins(-1, 0, 0, 0)
-        self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.verticalLayout_4 = QtWidgets.QVBoxLayout()
+        # self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.icon_only_widget)
+        # self.verticalLayout_3.setContentsMargins(-1, 0, 0, 0)
+        # self.verticalLayout_3.setSpacing(15)
+        # self.verticalLayout_3.setObjectName("verticalLayout_3")
+        self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.icon_only_widget)
         self.verticalLayout_4.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
         self.verticalLayout_4.setContentsMargins(9, 9, 9, 9)
-        self.verticalLayout_4.setSpacing(22)
+        self.verticalLayout_4.setSpacing(15)
         self.verticalLayout_4.setObjectName("verticalLayout_4")
         self.pbDataManagement1 = QtWidgets.QPushButton(self.icon_only_widget)
         font = QtGui.QFont()
@@ -94,7 +95,7 @@ class Ui_MainWindow(object):
         self.pbImageProcessing1.setAutoExclusive(True)
         self.pbImageProcessing1.setObjectName("pbImageProcessing1")
         self.verticalLayout_4.addWidget(self.pbImageProcessing1)
-        self.verticalLayout_3.addLayout(self.verticalLayout_4)
+        # self.verticalLayout_3.addLayout(self.verticalLayout_4)
         self.pbSpectrumAnalysis1 = QtWidgets.QPushButton(self.icon_only_widget)
         font = QtGui.QFont()
         font.setPointSize(12)
@@ -109,7 +110,9 @@ class Ui_MainWindow(object):
         self.pbSpectrumAnalysis1.setObjectName("pbSpectrumAnalysis1")
         self.verticalLayout_4.addWidget(self.pbSpectrumAnalysis1)
         spacerItem = QtWidgets.QSpacerItem(20, 253, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout_3.addItem(spacerItem)
+        self.verticalLayout_4.addItem(spacerItem)
+        self.verticalLayout_4.addStretch()
+
         self.horizontalLayout_8.addWidget(self.icon_only_widget)
         self.icon_name_widget = QtWidgets.QWidget(self.centralwidget)
         self.icon_name_widget.setStyleSheet("QWidget{background-color:rgb(230, 237, 237);\n"
@@ -186,7 +189,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.pbMenu = QtWidgets.QPushButton(self.widget)
+        self.pbMenu = QtWidgets.QPushButton(self.centralwidget)
         font = QtGui.QFont()
         font.setKerning(True)
         self.pbMenu.setFont(font)
@@ -196,7 +199,7 @@ class Ui_MainWindow(object):
         self.pbMenu.setIcon(icon4)
         self.pbMenu.setCheckable(True)
         self.pbMenu.setObjectName("pbMenu")
-        self.horizontalLayout.addWidget(self.pbMenu)
+        self.horizontalLayout.insertWidget(0, self.pbMenu)
         spacerItem2 = QtWidgets.QSpacerItem(218, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem2)
         self.ECGlabel = QtWidgets.QLabel(self.widget)
