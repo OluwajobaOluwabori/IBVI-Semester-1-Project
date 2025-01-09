@@ -14,34 +14,100 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(975, 566)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(MainWindow.sizePolicy().hasHeightForWidth())
-        # MainWindow.setSizePolicy(sizePolicy)
-        # MainWindow.setMinimumSize(QtCore.QSize(0, 0))
+        MainWindow.resize(950, 600)
         MainWindow.setStyleSheet("")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(self.centralwidget.sizePolicy().hasHeightForWidth())
-        # self.centralwidget.setSizePolicy(sizePolicy)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.centralwidget.sizePolicy().hasHeightForWidth())
+        self.centralwidget.setSizePolicy(sizePolicy)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout_9 = QtWidgets.QVBoxLayout(self.centralwidget)
         self.verticalLayout_9.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_9.setObjectName("verticalLayout_9")
-        self.horizontalLayout_8 = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_8.setSpacing(0)
-        self.horizontalLayout_8.setObjectName("horizontalLayout_8")
+
+        # Add the Menu Bar at the top
+        self.menuBarWidget = QtWidgets.QWidget(self.centralwidget)
+        self.menuBarLayout = QtWidgets.QHBoxLayout(self.menuBarWidget)
+        self.menuBarLayout.setContentsMargins(0, 0, 0, 0)
+        self.menuBarLayout.setSpacing(5)
+
+        # Add Menu Button (pbMenu)
+        self.pbMenu = QtWidgets.QPushButton(self.menuBarWidget)
+        font = QtGui.QFont()
+        font.setKerning(True)
+        self.pbMenu.setFont(font)
+        self.pbMenu.setText("")
+        icon4 = QtGui.QIcon()
+        icon4.addPixmap(QtGui.QPixmap(":/menu.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.pbMenu.setIcon(icon4)
+        self.pbMenu.setCheckable(True)
+        self.pbMenu.setObjectName("pbMenu")
+        self.menuBarLayout.addWidget(self.pbMenu)
+
+        # Add a spacer
+        self.menuBarLayout.addItem(QtWidgets.QSpacerItem(20, 20, QtWidgets.QSizePolicy.Expanding))
+
+        # Menu Bar Styling
+        self.menuBarWidget.setStyleSheet("""
+            QWidget {
+                background: linear-gradient(to right, #1F95EF, #2F3C4F);
+                border: none;
+                padding: 5px;
+                border-bottom: 1px solid #B0BEC5;  
+            }
+            QPushButton {
+                background-color: transparent;
+                color: white;
+                font: bold 14px 'Segoe UI';
+                border: none;
+                padding: 5px 15px;
+            }
+            QPushButton:hover {
+                background-color: rgba( 86, 101, 115, 0.5);
+                border-radius: 5px;
+            }
+        """)
+
+        # Add the menu bar widget to the main vertical layout
+        self.verticalLayout_9.addWidget(self.menuBarWidget)
+
+
+        self.gridLayout1 = QtWidgets.QGridLayout(self.centralwidget)
+        self.gridLayout1.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout1.setSpacing(0)
+        self.gridLayout1.setObjectName("gridLayout")
+
+        # self.horizontalLayout_8 = QtWidgets.QHBoxLayout()
+        # self.horizontalLayout_8.setSpacing(0)
+        # self.horizontalLayout_8.setObjectName("horizontalLayout_8")
         self.icon_only_widget = QtWidgets.QWidget(self.centralwidget)
         self.icon_only_widget.setMinimumWidth(50)
+        self.icon_only_widget.setMaximumWidth(50)  # Limit its width
         self.icon_only_widget.setStyleSheet("""
-                    QWidget { background-color: rgb(230, 237, 237); }
-                    QPushButton { text-align: left; color: gray; height: 15px; border: none; padding-left: 5px; }
-                    QPushButton:checked { background-color: #F5FAFE; color: #1F95EF; font-weight: bold; }
-                """)
+            QWidget {
+                background-color: rgba( 86, 101, 115, 0.5);
+                border-bottom: 1px solid #b0b0b0;
+            }
+            QPushButton {
+                color: white;
+                font: 14px 'Segoe UI';
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+            QPushButton:hover {
+                background-color: #F5F5F5;
+                color: black;
+            }
+            QPushButton:checked {
+                background-color: #F5F5F5;
+                color: white;
+                font-weight: bold;
+            }
+        """)
 
         self.icon_only_widget.setObjectName("icon_only_widget")
         # self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.icon_only_widget)
@@ -53,6 +119,19 @@ class Ui_MainWindow(object):
         self.verticalLayout_4.setContentsMargins(9, 9, 9, 9)
         self.verticalLayout_4.setSpacing(15)
         self.verticalLayout_4.setObjectName("verticalLayout_4")
+
+        self.verticalLayout_4.insertWidget(0, self.menuBarWidget)
+
+        # # Create a separator (QFrame)
+        # self.menuSeparator = QtWidgets.QFrame(self.icon_only_widget)
+        # self.menuSeparator.setFrameShape(QtWidgets.QFrame.HLine)
+        # self.menuSeparator.setFrameShadow(QtWidgets.QFrame.Sunken)
+        # self.menuSeparator.setStyleSheet("color: #B0BEC5;")  # Light gray or soft blue
+        # self.menuSeparator.setFixedHeight(2)  # Adjust height as needed
+        # self.menuSeparator.setFixedWidth(45)
+        # # Insert the separator below the menu button and MediMetrics label
+        # self.verticalLayout_4.insertWidget(1, self.menuSeparator)  # Add after the menu button and label
+
         self.pbDataManagement1 = QtWidgets.QPushButton(self.icon_only_widget)
         font = QtGui.QFont()
         font.setPointSize(12)
@@ -61,8 +140,8 @@ class Ui_MainWindow(object):
         self.pbDataManagement1.setFont(font)
         self.pbDataManagement1.setText("")
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/profile2.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon.addPixmap(QtGui.QPixmap(":/profile.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon.addPixmap(QtGui.QPixmap(":/icons8-utilisateur-sexe-neutre-50 (1).png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(":/icons8-utilisateur-sexe-neutre-50 (1).png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
         self.pbDataManagement1.setIcon(icon)
         self.pbDataManagement1.setCheckable(True)
         self.pbDataManagement1.setAutoExclusive(True)
@@ -75,7 +154,7 @@ class Ui_MainWindow(object):
         self.pbDataAnalysis1.setText("")
         icon1 = QtGui.QIcon()
         icon1.addPixmap(QtGui.QPixmap(":/icons8-graphique-combiné-48.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon1.addPixmap(QtGui.QPixmap(":/icons8-graphique-combiné-481.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon1.addPixmap(QtGui.QPixmap(":/icons8-graphique-combiné-48.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
         self.pbDataAnalysis1.setIcon(icon1)
         self.pbDataAnalysis1.setCheckable(True)
         self.pbDataAnalysis1.setAutoExclusive(True)
@@ -89,7 +168,7 @@ class Ui_MainWindow(object):
         self.pbImageProcessing1.setText("")
         icon3 = QtGui.QIcon()
         icon3.addPixmap(QtGui.QPixmap(":/icons8-image-48.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon3.addPixmap(QtGui.QPixmap(":/icons8-image-24.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon3.addPixmap(QtGui.QPixmap(":/icons8-image-48.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
         self.pbImageProcessing1.setIcon(icon3)
         self.pbImageProcessing1.setCheckable(True)
         self.pbImageProcessing1.setAutoExclusive(True)
@@ -103,7 +182,7 @@ class Ui_MainWindow(object):
         self.pbSpectrumAnalysis1.setText("")
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap(":/icons8-signal-rfid-50.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        icon2.addPixmap(QtGui.QPixmap(":/icons8-signal-rfid-30.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
+        icon2.addPixmap(QtGui.QPixmap(":/icons8-signal-rfid-50.png"), QtGui.QIcon.Normal, QtGui.QIcon.On)
         self.pbSpectrumAnalysis1.setIcon(icon2)
         self.pbSpectrumAnalysis1.setCheckable(True)
         self.pbSpectrumAnalysis1.setAutoExclusive(True)
@@ -113,14 +192,34 @@ class Ui_MainWindow(object):
         self.verticalLayout_4.addItem(spacerItem)
         self.verticalLayout_4.addStretch()
 
-        self.horizontalLayout_8.addWidget(self.icon_only_widget)
+        self.gridLayout1.addWidget(self.icon_only_widget, 0, 0, 1, 1)
+
+        # self.horizontalLayout_8.addWidget(self.icon_only_widget)
         self.icon_name_widget = QtWidgets.QWidget(self.centralwidget)
-        self.icon_name_widget.setStyleSheet("QWidget{background-color:rgb(230, 237, 237);\n"
-"}\n"
-"QPushButton{text-align:left;color:gray;height:15px;border:none;padding-left:5px;border-top-left-radius:10px;border-bottom-left-radius:10px;}QLabel{color:gray;}\n"
-"QPushButton:checked{background-color: #F5FAFE;\n"
-"color:#1F95EF; font-weight:bold;\n"
-"}")
+        self.icon_name_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba( 86, 101, 115, 0.5);
+            }
+            QPushButton {
+                color: black;
+                font: 14px 'Segoe UI';
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                text-align: left;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+            QPushButton:hover {
+                background-color: #F5F5F5;
+                color: black;
+            }
+            QPushButton:checked {
+                background-color: #F5F5F5;
+                color: black;
+                font-weight: bold;
+                font: 14.5px;
+            }
+        """)
         self.icon_name_widget.setObjectName("icon_name_widget")
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(self.icon_name_widget)
         self.verticalLayout_2.setContentsMargins(7, 0, 0, 0)
@@ -130,6 +229,40 @@ class Ui_MainWindow(object):
         self.verticalLayout.setContentsMargins(9, 9, 9, 9)
         self.verticalLayout.setSpacing(22)
         self.verticalLayout.setObjectName("verticalLayout")
+
+        # Add MediMetrics label and Menu button inside icon_name_widget
+        self.horizontalLayoutForMediMetrics = QtWidgets.QHBoxLayout()
+        self.horizontalLayoutForMediMetrics.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayoutForMediMetrics.setSpacing(5)
+
+        # Add Menu Button (pbMenu) beside "MediMetrics"
+        self.pbMenuIconName = QtWidgets.QPushButton(self.icon_name_widget)
+        self.pbMenuIconName.setFont(font)
+        self.pbMenuIconName.setText("")
+        self.pbMenuIconName.setStyleSheet("""background-color: none; text-align:center; 
+                border-radius: 5px;""")
+        self.pbMenuIconName.setIcon(icon4)  # Use the same menu icon
+        self.pbMenuIconName.setChecked(False)  # Default unchecked state
+        self.pbMenuIconName.setCheckable(True)
+        self.pbMenuIconName.setMaximumSize(QtCore.QSize(50, 50))
+        self.pbMenuIconName.setObjectName("pbMenuIconName")
+
+
+        # Add MediMetrics label inside icon_name_widget
+        self.mediMetricsLabel = QtWidgets.QLabel(self.icon_name_widget)
+        self.mediMetricsLabel.setText("MediMetrics")
+        self.mediMetricsLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.mediMetricsLabel.setStyleSheet("background-color: none; font: italic 13pt; color: black;")
+        self.mediMetricsLabel.setVisible(False)  # Initially hidden
+
+        # Add widgets to the horizontal layout
+        self.horizontalLayoutForMediMetrics.addWidget(self.mediMetricsLabel)
+        self.horizontalLayoutForMediMetrics.addWidget(self.pbMenuIconName)
+
+        # Insert the layout at the top of the icon_name_widget
+        self.verticalLayout.insertLayout(0, self.horizontalLayoutForMediMetrics)
+
+
         self.pbDataManagement2 = QtWidgets.QPushButton(self.icon_name_widget)
         font = QtGui.QFont()
         font.setPointSize(12)
@@ -169,7 +302,11 @@ class Ui_MainWindow(object):
         self.verticalLayout_2.addLayout(self.verticalLayout)
         spacerItem1 = QtWidgets.QSpacerItem(20, 253, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout_2.addItem(spacerItem1)
-        self.horizontalLayout_8.addWidget(self.icon_name_widget)
+
+
+        self.gridLayout1.addWidget(self.icon_name_widget, 0, 1, 1, 1)
+
+        # self.horizontalLayout_8.addWidget(self.icon_name_widget)
         self.main_menu = QtWidgets.QWidget(self.centralwidget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
@@ -189,17 +326,8 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
-        self.pbMenu = QtWidgets.QPushButton(self.centralwidget)
-        font = QtGui.QFont()
-        font.setKerning(True)
-        self.pbMenu.setFont(font)
-        self.pbMenu.setText("")
-        icon4 = QtGui.QIcon()
-        icon4.addPixmap(QtGui.QPixmap(":/menu.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.pbMenu.setIcon(icon4)
-        self.pbMenu.setCheckable(True)
-        self.pbMenu.setObjectName("pbMenu")
-        self.horizontalLayout.insertWidget(0, self.pbMenu)
+
+
         spacerItem2 = QtWidgets.QSpacerItem(218, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem2)
         self.ECGlabel = QtWidgets.QLabel(self.widget)
@@ -247,6 +375,11 @@ class Ui_MainWindow(object):
         self.connectDBButton.setToolTip("Connect to a database (SQLite, MySQL, PostgreSQL).")
         self.dataSourceLayout.addWidget(self.connectDBButton)
 
+        # Add Insert Row Button in Data Source Group
+        self.insertRowButton = QtWidgets.QPushButton("Enter Data")
+        self.insertRowButton.setToolTip("Add an empty row to the table for manual entry.")
+        self.dataSourceLayout.addWidget(self.insertRowButton)
+
         self.dataLayout.addWidget(self.dataSourceGroupBox)
 
         # Database Operations
@@ -254,7 +387,7 @@ class Ui_MainWindow(object):
         self.dbOperationsLayout = QtWidgets.QGridLayout(self.dbOperationsGroupBox)
 
         # Insert Data Button
-        self.insertDataButton = QtWidgets.QPushButton("Insert New Data")
+        self.insertDataButton = QtWidgets.QPushButton("Save to Database")
         self.insertDataButton.setToolTip("Insert new patient data into the database.")
         self.dbOperationsLayout.addWidget(self.insertDataButton, 0, 0)
 
@@ -373,16 +506,20 @@ class Ui_MainWindow(object):
         self.horizontalLayout_7.addWidget(self.tableWidget)
         self.tabWidget.addTab(self.tab_2, "")
         self.stackedWidget.addWidget(self.Data_6)
+
+
         self.Signal_6 = QtWidgets.QWidget()
         self.Signal_6.setObjectName("Signal_6")
         self.gridLayout_7 = QtWidgets.QGridLayout(self.Signal_6)
         self.gridLayout_7.setContentsMargins(0, 0, -1, 0)
         self.gridLayout_7.setObjectName("gridLayout_7")
+
+
         # Adding a title to the main layout
         self.titleLabel = QtWidgets.QLabel("ECG Data Processing")
         self.titleLabel.setAlignment(QtCore.Qt.AlignCenter)
         font = QtGui.QFont()
-        font.setPointSize(10)
+        font.setPointSize(15)
         font.setBold(True)
         self.titleLabel.setFont(font)
 
@@ -403,7 +540,7 @@ class Ui_MainWindow(object):
 
         # Load Signal Button
         self.LoadBtnsignal = QtWidgets.QPushButton("Load Signal")
-        self.LoadBtnsignal.setStyleSheet("background-color: #007bff; color: white; padding: 5px; border-radius: 5px;")
+        # self.LoadBtnsignal.setStyleSheet("background-color: #1F95EF; color: white; padding: 5px; border-radius: 5px;")
         self.LoadBtnsignal.setToolTip("Click to load ECG signal data.")
         self.settingsLayout.addWidget(self.LoadBtnsignal)
 
@@ -459,19 +596,7 @@ class Ui_MainWindow(object):
         self.windowDurationLayout.addWidget(self.windowDurationLabel)
         self.windowDurationLayout.addWidget(self.windowDurationSlider)
         self.settingsLayout.addLayout(self.windowDurationLayout)
-        # self.thresholdValueLabel = QtWidgets.QLabel(
-        #         f"Threshold Level: {self.sliderThreshold.value()} (Min: 0, Max: 255)")
-        # Norm Combo Box
-        # self.NormComboBoxLayout = QtWidgets.QHBoxLayout()
-        # self.label_50 = QtWidgets.QLabel("Norm:")
-        # self.label_50.setObjectName("label_50")
-        # self.NormcomboBox = QtWidgets.QComboBox()
-        # self.NormcomboBox.addItems(["Norm 1", "Norm 2", "Norm 3"])
-        # self.NormcomboBox.setToolTip("Select the norm for the Fourier Transform.")
-        # self.settingsLayout.addWidget(self.NormcomboBox)
-        # self.NormComboBoxLayout.addWidget(self.label_50)
-        # self.NormComboBoxLayout.addWidget(self.NormcomboBox)
-        # self.settingsLayout.addLayout(self.NormComboBoxLayout)
+
 
         # FFT Parameters
         self.fftGroup = QtWidgets.QGroupBox("FFT Parameters")
@@ -839,7 +964,7 @@ class Ui_MainWindow(object):
         self.loadImageLayout = QtWidgets.QVBoxLayout(self.loadImageGroup)
 
         self.btnLoadImage = QtWidgets.QPushButton("Load Image", self.loadImageGroup)
-        self.btnLoadImage.setStyleSheet("background-color: #007bff; color: white; padding: 5px; border-radius: 5px;")
+        # self.btnLoadImage.setStyleSheet("background-color: #1F95EF; color: white; padding: 5px; border-radius: 5px;")
 
         self.loadImageLayout.addWidget(self.btnLoadImage)
 
@@ -853,40 +978,38 @@ class Ui_MainWindow(object):
         self.btnGrayscale = QtWidgets.QPushButton("Grayscale", self.grayscaleThresholdGroup)
         self.grayscaleThresholdLayout.addWidget(self.btnGrayscale)
 
-        # Thresholding
-        self.thresholdLayout = QtWidgets.QVBoxLayout()
-        self.sliderThreshold = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.grayscaleThresholdGroup)
-        self.sliderThreshold.setMinimum(0)
-        self.sliderThreshold.setMaximum(255)
-        self.sliderThreshold.setValue(128)
-        self.thresholdValueLabel = QtWidgets.QLabel(
-                f"Threshold Level: {self.sliderThreshold.value()} (Min: 0, Max: 255)")
-        self.finalizeThresholdCheckbox = QtWidgets.QCheckBox("Finalize Threshold", self.grayscaleThresholdGroup)
-        self.finalizeThresholdCheckbox.setEnabled(False)  # Initially disabled
+        # # Thresholding
+        # self.thresholdLayout = QtWidgets.QVBoxLayout()
+        # self.sliderThreshold = QtWidgets.QSlider(QtCore.Qt.Horizontal, self.grayscaleThresholdGroup)
+        # self.sliderThreshold.setMinimum(0)
+        # self.sliderThreshold.setMaximum(255)
+        # self.sliderThreshold.setValue(128)
+        # self.thresholdValueLabel = QtWidgets.QLabel(
+        #         f"Threshold Level: {self.sliderThreshold.value()} (Min: 0, Max: 255)")
+        # self.finalizeThresholdCheckbox = QtWidgets.QCheckBox("Finalize Threshold", self.grayscaleThresholdGroup)
+        # self.finalizeThresholdCheckbox.setEnabled(False)  # Initially disabled
 
-
-        self.thresholdLayout.addWidget(self.thresholdValueLabel)
-        self.thresholdLayout.addWidget(self.sliderThreshold)
-        self.thresholdLayout.addWidget(self.finalizeThresholdCheckbox)
-        self.grayscaleThresholdLayout.addLayout(self.thresholdLayout)
+        # Thresholding Button
+        self.btnThreshold = QtWidgets.QPushButton("Threshold", self.grayscaleThresholdGroup)
+        self.grayscaleThresholdLayout.addWidget(self.btnThreshold)
 
         self.segmentationControlsLayout.addWidget(self.grayscaleThresholdGroup)
 
 
         ### Noise Reduction Group ###
-        self.noiseReductionGroup = QtWidgets.QGroupBox("Noise Reduction &amp; Sharpness")
+        self.noiseReductionGroup = QtWidgets.QGroupBox("Noise Reduction & Sharpness")
         self.noiseReductionLayout = QtWidgets.QHBoxLayout(self.noiseReductionGroup)
 
         # Denoising
-        self.btnDenoise = QtWidgets.QPushButton("Apply Denoising")
+        self.btnDenoise = QtWidgets.QPushButton("Denoise")
         self.noiseReductionLayout.addWidget(self.btnDenoise)
 
         # Blurring
-        self.btnBlur = QtWidgets.QPushButton("Apply Gaussian Blur")
+        self.btnBlur = QtWidgets.QPushButton("Gaussian Blur")
         self.noiseReductionLayout.addWidget(self.btnBlur)
 
         # Sharpening
-        self.btnSharpen = QtWidgets.QPushButton("Apply Image Sharpening")
+        self.btnSharpen = QtWidgets.QPushButton("Sharpening")
         self.noiseReductionLayout.addWidget(self.btnSharpen)
 
         self.segmentationControlsLayout.addWidget(self.noiseReductionGroup)
@@ -895,7 +1018,7 @@ class Ui_MainWindow(object):
         self.edgeDetectionGroup = QtWidgets.QGroupBox("Edge Detection")
         self.edgeLayout = QtWidgets.QVBoxLayout(self.edgeDetectionGroup)
 
-        self.btnEdgeDetection = QtWidgets.QPushButton("Apply Canny Edge Detection", self.edgeDetectionGroup)
+        self.btnEdgeDetection = QtWidgets.QPushButton("Canny Edge Detection", self.edgeDetectionGroup)
         self.edgeLayout.addWidget(self.btnEdgeDetection)
 
         self.segmentationControlsLayout.addWidget(self.edgeDetectionGroup)
@@ -932,11 +1055,12 @@ class Ui_MainWindow(object):
         self.comboRegionProps.addItems(["Surface Area", "Perimeter", "Eccentricity", "All"])
         self.regionPropsLayout.addWidget(self.comboRegionProps)
 
-        self.btnCalculateProps = QtWidgets.QPushButton("Calculate Properties")
+        self.btnCalculateProps = QtWidgets.QPushButton("Calculate")
         self.regionPropsLayout.addWidget(self.btnCalculateProps)
 
         self.segmentationControlsLayout.addWidget(self.regionPropsGroup)
 
+        self.segmentationControls.setFixedWidth(300)  # Adjust width as needed
 
         # Add controls to the main layout
         self.image6Layout.addWidget(self.segmentationControls)
@@ -954,7 +1078,7 @@ class Ui_MainWindow(object):
         self.labelOriginalImage.setAlignment(QtCore.Qt.AlignCenter)
         # self.labelOriginalImage.setFrameShape(QtWidgets.QFrame.Box)
         # self.labelOriginalImage.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        self.labelOriginalImage.setMinimumSize(450, 300)
+        self.labelOriginalImage.setMinimumSize(300, 300)
         self.imageDisplayLayout.addWidget(self.labelOriginalImage)
 
         # Processed Image Display
@@ -962,7 +1086,7 @@ class Ui_MainWindow(object):
         self.labelProcessedImage.setAlignment(QtCore.Qt.AlignCenter)
         # self.labelProcessedImage.setFrameShape(QtWidgets.QFrame.Box)
         # self.labelProcessedImage.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        self.labelProcessedImage.setMinimumSize(450, 300)
+        self.labelProcessedImage.setMinimumSize(300, 300)
         self.imageDisplayLayout.addWidget(self.labelProcessedImage)
 
         # self.labelOriginalImage.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -1002,7 +1126,7 @@ class Ui_MainWindow(object):
         self.actionLayout = QtWidgets.QHBoxLayout(self.actionGroup)
 
         # Clear Display Button
-        self.btnClearDisplay = QtWidgets.QPushButton("Clear Display")
+        self.btnClearDisplay = QtWidgets.QPushButton("Clear")
         self.btnClearDisplay.setToolTip("Clear the images and results table")
         self.actionLayout.addWidget(self.btnClearDisplay)
 
@@ -1045,8 +1169,13 @@ class Ui_MainWindow(object):
         self.horizontalLayout_panel1.addLayout(self.verticalLayout_8)
         self.stackedWidget.addWidget(self.Image_6)
         self.verticalLayout_26.addWidget(self.stackedWidget)
-        self.horizontalLayout_8.addWidget(self.main_menu)
-        self.verticalLayout_9.addLayout(self.horizontalLayout_8)
+
+        self.gridLayout1.addWidget(self.main_menu, 0, 2, 1, 1)
+
+        # self.horizontalLayout_8.addWidget(self.main_menu)
+        self.verticalLayout_9.addLayout(self.gridLayout1)
+
+        # self.verticalLayout_9.addLayout(self.horizontalLayout_8)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 20))
@@ -1057,7 +1186,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.stackedWidget.setCurrentIndex(2)
+        self.stackedWidget.setCurrentIndex(0)
         self.tabWidget.setCurrentIndex(0)
         self.pbDataManagement1.toggled['bool'].connect(self.pbDataManagement2.setChecked) # type: ignore
         self.pbDataAnalysis1.toggled['bool'].connect(self.pbDataAnalysis2.setChecked) # type: ignore
@@ -1069,6 +1198,8 @@ class Ui_MainWindow(object):
         self.pbDataManagement2.toggled['bool'].connect(self.pbDataManagement1.setChecked) # type: ignore
         self.pbMenu.toggled['bool'].connect(self.icon_name_widget.setVisible) # type: ignore
         self.pbMenu.toggled['bool'].connect(self.icon_only_widget.setHidden) # type: ignore
+        self.pbMenuIconName.toggled['bool'].connect(self.icon_name_widget.setHidden)  # type: ignore
+        self.pbMenuIconName.toggled['bool'].connect(self.icon_only_widget.setVisible)  # type: ignore
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def getFilterInputDialog(self):
@@ -1117,7 +1248,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "MediMetrics"))
         self.pbDataManagement2.setText(_translate("MainWindow", "Data Management"))
         self.pbDataAnalysis2.setText(_translate("MainWindow", "Data Analysis"))
         self.pbSpectrumAnalysis2.setText(_translate("MainWindow", "Spectrum Analysis"))
