@@ -73,6 +73,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
         self.ui.icon_name_widget.setHidden(True)
 
+        # Add logic for expanding and collapsing the menu
+        self.ui.pbMenu.toggled.connect(self.toggle_menu)
+        self.ui.pbMenuIconName.toggled.connect(self.toggle_menu)
 
         self.ui.pbDataManagement1.clicked.connect(self.switch_to_dataManagementPage)
         self.ui.pbDataManagement2.clicked.connect(self.switch_to_dataManagementPage)
@@ -110,7 +113,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.btnDenoise.clicked.connect(self.apply_denoising)
         self.ui.btnBlur.clicked.connect(self.apply_blurring)
         self.ui.btnEdgeDetection.clicked.connect(self.apply_canny_edge)
-        self.ui.sliderThreshold.valueChanged.connect(self.apply_thresholding)
+        self.ui.btnThreshold.clicked.connect(self.apply_thresholding)
         self.ui.btnSharpen.clicked.connect(self.apply_sharpening)
 
 
@@ -150,6 +153,16 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         # Force the focus on the first tab
         self.ui.tabWidget.setCurrentIndex(0)
 
+        # Link the clicked action from the button to a function to plot data
+        # self.ui.pbPlot.clicked.connect(self.plotData)
+        # self.ui.pbFFT.clicked.connect(self.showFFTWindow)
+        # self.ui.pbPeriodogram.clicked.connect(self.showPeriodogramWindow)
+
+
+        # Button can't be clicked because no reason to if Excel not yet loaded
+        # self.ui.pbPlot.setEnabled(False)
+        # self.ui.pbFFT.setEnabled(False)
+        # self.ui.pbPeriodogram.setEnabled(False)
 
         self.canvas = None
         self.toolbar = None
@@ -165,6 +178,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.retrieveDataButton.clicked.connect(self.retrieveData)
         self.ui.updateDataButton.clicked.connect(self.updateData)
         self.ui.deleteDataButton.clicked.connect(self.deleteData)
+        self.ui.insertRowButton.clicked.connect(self.insertRow)
+
 
         self.centerWindow()
 
@@ -419,8 +434,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
             # Time-Domain HRV Metrics
             self.metrics['Mean RR Interval (ms)'] = np.mean(rr_intervals) * 1000
-            self.metrics['SDNN (ms)'] = np.std(rr_intervals) * 1000
-            self.metrics['RMSSD (ms)'] = np.sqrt(np.mean(np.diff(rr_intervals) ** 2)) * 1000
+            self.metrics['Standard Deviation of NN Intervals- SDNN (ms)'] = np.std(rr_intervals) * 1000
+            self.metrics['Root Mean Square of Successive Differences- RMSSD (ms)'] = np.sqrt(np.mean(np.diff(rr_intervals) ** 2)) * 1000
             self.metrics['IQR RR Interval (ms)'] = iqr(rr_intervals) * 1000
 
             self.updateResultsTable(self.metrics)
@@ -677,17 +692,19 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
     def apply_thresholding(self):
         """Apply thresholding based on slider value."""
-        self.ui.finalizeThresholdCheckbox.setEnabled(True)
-        if hasattr(self, 'processed_image'):
-            if self.ui.finalizeThresholdCheckbox.isChecked():
+        # self.ui.finalizeThresholdCheckbox.setEnabled(True)
+        try:
+            if hasattr(self, 'processed_image'):
                 self.history.append(self.processed_image.copy())
-            gray_image = cv2.cvtColor(self.original_image, cv2.COLOR_RGB2GRAY)
-            _, thresholded = cv2.threshold(gray_image, self.ui.sliderThreshold.value(), 255, cv2.THRESH_OTSU)
-            self.processed_image = cv2.cvtColor(thresholded, cv2.COLOR_GRAY2RGB)
-            self.ui.thresholdValueLabel.setText(f"Threshold Level: {self.ui.sliderThreshold.value()} (Min: 0, Max: 255)")
-            self.display_image(self.processed_image, self.ui.labelProcessedImage)
-            self.ui.btnUndo.setEnabled(True)
-            self.ui.btnRedo.setEnabled(False)
+                gray_image = cv2.cvtColor(self.original_image, cv2.COLOR_RGB2GRAY)
+                _, thresholded = cv2.threshold(gray_image,127, 255, cv2.THRESH_OTSU)
+                self.processed_image = cv2.cvtColor(thresholded, cv2.COLOR_GRAY2RGB)
+                # self.ui.thresholdValueLabel.setText(f"Threshold Level: {self.ui.sliderThreshold.value()} (Min: 0, Max: 255)")
+                self.display_image(self.processed_image, self.ui.labelProcessedImage)
+                self.ui.btnUndo.setEnabled(True)
+                self.ui.btnRedo.setEnabled(False)
+        except Exception as e:
+            print(e)
 
 
     def apply_blurring(self):
@@ -1246,6 +1263,11 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to retrieve data: {e}")
 
+    # Function to Add Row
+    def insertRow(self):
+        rowPosition = self.ui.dataTable.rowCount()
+        self.ui.dataTable.insertRow(rowPosition)
+
     def deleteData(self):
         try:
             if not hasattr(self, 'dbConnection'):
@@ -1407,7 +1429,16 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.toolbar.close()
         b_Canvas = False
 
+    def toggle_menu(self, checked):
+        # Synchronize both menu buttons
+        self.ui.pbMenu.setChecked(checked)
+        self.ui.pbMenuIconName.setChecked(checked)
 
+        # Show or hide widgets based on the checked state
+        self.ui.icon_name_widget.setVisible(checked)
+        self.ui.icon_only_widget.setHidden(checked)
+        # Show or hide the MediMetrics label
+        self.ui.mediMetricsLabel.setVisible(checked)
 
     def updateMainWindow(self):
         return
