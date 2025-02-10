@@ -1,19 +1,11 @@
 import os, sys, time, pdb
 import cv2  # pip install opencv-python
 import matplotlib.pyplot as plt
-import numpy as np
-import scipy.ndimage as ndi  # pip install scipy
-import scipy.signal as sig
 import pandas as pd, math
 import wfdb
-from IPython.core.pylabtools import figsize
-from IPython.display import display
 from scipy.signal import periodogram,welch
 from scipy.signal.windows import hamming, hann, boxcar
 from scipy.signal import find_peaks,butter, filtfilt
-# from tensorflow.keras.models import load_model
-from PIL import Image
-from skimage.segmentation import flood
 from skimage.morphology import erosion,dilation,remove_small_objects
 from scipy.ndimage import binary_fill_holes
 from skimage.measure import label, regionprops, regionprops_table
@@ -22,13 +14,9 @@ from scipy.ndimage import binary_fill_holes
 import csv
 import json
 
-
-
-
-
-import openpyxl
-
-from absl.logging import exception
+import plotly.graph_objects as go
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+import plotly.express as px
 
 
 from PyQt5.QtGui import QImage, QPixmap,QFont
@@ -51,13 +39,10 @@ matplotlib.use('TKAgg')
 import numpy as np
 from numpy import *
 from ProjectS1v1GUI import Ui_MainWindow
-# import tensorflow as tf
-# from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, concatenate
 from skimage.io import imread, imshow
 import skimage.morphology as morph
 from scipy.stats import iqr
 from PyQt5.QtWidgets import QApplication, QMainWindow, QDesktopWidget
-import sqlite3  # For SQLite database integration
 import mysql.connector
 
 import csv      # For CSV data loading
@@ -70,6 +55,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.processed_image = None
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+        # Perform analysis
+
 
         self.ui.icon_name_widget.setHidden(True)
 
@@ -85,6 +73,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.pbSpectrumAnalysis2.clicked.connect(self.switch_to_SpectrumAnalysisPage)
         self.ui.pbImageProcessing1.clicked.connect(self.switch_to_ImageProcessingPage)
         self.ui.pbImageProcessing2.clicked.connect(self.switch_to_ImageProcessingPage)
+        self.ui.pbVideoProcessing1.clicked.connect(self.switch_to_VideoProcessingPage)
+        self.ui.pbVideoProcessing2.clicked.connect(self.switch_to_VideoProcessingPage)
 
         # Link the clicked action from the button to a function to read excel file
         self.ui.LoadBtnsignal.clicked.connect(self.loadDatasignal)
@@ -94,7 +84,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.WindowcomboBox.currentTextChanged.connect(self.plotPeriodogram)
         self.ui.ScalingcomboBox.currentTextChanged.connect(self.plotPeriodogram)
         self.ui.NormcomboBox.currentTextChanged.connect(self.plotFFT)
-        # self.ui.pbValidate.clicked.connect(self.updateMainWindow)
 
         self.ui.btnCalculateMetrics.clicked.connect(self.calculate_metrics)
         self.ui.exportButton.clicked.connect(self.export_metrics_to_file)
@@ -113,6 +102,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.btnDenoise.clicked.connect(self.apply_denoising)
         self.ui.btnBlur.clicked.connect(self.apply_blurring)
         self.ui.btnEdgeDetection.clicked.connect(self.apply_canny_edge)
+        self.ui.btnBoundary.clicked.connect(self.apply_boundary)
         self.ui.btnThreshold.clicked.connect(self.apply_thresholding)
         self.ui.btnSharpen.clicked.connect(self.apply_sharpening)
 
@@ -136,34 +126,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
 
 
-        # Link the clicked action from the button to a function to read excel file
-        self.ui.LoadBtn_excel.clicked.connect(self.loadExcelData)
-        # Link the clicked action from the button to a function to plot data
-        self.ui.pbPlot.clicked.connect(self.plotExcelData)
-        # Link the combobox to a function when we select an item from the list
-        self.ui.cbX.currentIndexChanged.connect(self.cbXvaluechanged)
-        self.ui.cbY.currentIndexChanged.connect(self.cbYvaluechanged)
-
-        # Button can't be clicked because no reason to if Excel not yet loaded
-        self.ui.pbPlot.setEnabled(False)
-
-        # Change the default name of the tab1 and tab2
-        self.ui.tabWidget.setTabText(0, "Plot")
-        self.ui.tabWidget.setTabText(1, "Data")
-        # Force the focus on the first tab
-        self.ui.tabWidget.setCurrentIndex(0)
-
-        # Link the clicked action from the button to a function to plot data
-        # self.ui.pbPlot.clicked.connect(self.plotData)
-        # self.ui.pbFFT.clicked.connect(self.showFFTWindow)
-        # self.ui.pbPeriodogram.clicked.connect(self.showPeriodogramWindow)
-
-
-        # Button can't be clicked because no reason to if Excel not yet loaded
-        # self.ui.pbPlot.setEnabled(False)
-        # self.ui.pbFFT.setEnabled(False)
-        # self.ui.pbPeriodogram.setEnabled(False)
-
         self.canvas = None
         self.toolbar = None
         self.metrics = {}
@@ -182,7 +144,21 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
 
         self.centerWindow()
+        self.analyze_patient_data()
 
+        # Connect Signals to Slots
+        self.ui.btnLoadVideo.clicked.connect(self.load_video)
+        self.ui.btnvideoGrayscale.clicked.connect(self.convert_video_to_grayscale)
+        self.ui.btnvideoEdgeDetection.clicked.connect(self.apply_edge_detection)
+        self.ui.btnVisualizeChannels.clicked.connect(self.visualize_channels)
+        self.ui.btnvideoThreshold.clicked.connect(self.apply_videothresholding)
+        self.ui.btnSaveVideo.clicked.connect(self.save_video)
+        self.ui.btnClearvideoDisplay.clicked.connect(self.clear_videodisplay)
+        self.ui.btnPlayVideo.clicked.connect(self.play_video)
+        self.ui.btnPauseVideo.clicked.connect(self.pause_video)
+        self.ui.btnStopVideo.clicked.connect(self.stop_video)
+
+        self.is_paused = False
 
     def centerWindow(self):
         """Center the main window on the screen, accounting for DPI scaling."""
@@ -204,10 +180,11 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.ui.stackedWidget.setCurrentIndex(1)
     def switch_to_SpectrumAnalysisPage(self):
         self.ui.stackedWidget.setCurrentIndex(2)
-        # self.ui.LoadBtnsignal.clicked.connect(self.loadDatasignal)
-        # self.ui.pbPeriodogram.clicked.connect(self.Periodogram)
+
     def switch_to_ImageProcessingPage(self):
         self.ui.stackedWidget.setCurrentIndex(3)
+    def switch_to_VideoProcessingPage(self):
+        self.ui.stackedWidget.setCurrentIndex(4)
 
 
     def loadDatasignal(self):
@@ -252,10 +229,10 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 self.plotSignal()
                 # Show success message box
                 QMessageBox.information(self, "Success", "Data successfully loaded!")
+
+            QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
         except Exception as e:
             print(e)
-            QMessageBox.critical(self, "Error", f"Failed to load data: {e}")
-
 
 
     def show_previous_plot(self):
@@ -291,7 +268,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             self.canvas.figure.savefig(file_name)
             QMessageBox.information(self, "Saved", f"Plot saved as {file_name}")
 
-            # Example: self.figure.savefig(file_name)
 
     def plotSignal(self):
         """Plots the signal and peaks."""
@@ -351,7 +327,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             # Plot FFT
             fig, ax = plt.subplots(figsize=(8, 4))
             ax.plot(positive_freqs, fft_magnitude)
-            ax.set_title("FFT Plot")
+            ax.set_title(f"FFT Plot\n Norm = {norm_value}")
             ax.set_xlabel("Frequency (Hz)")
             ax.set_ylabel("Amplitude")
 
@@ -382,9 +358,12 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             # Plot Periodogram
             fig, ax = plt.subplots(figsize=(8, 4))
             ax.plot(freqs, Pxx_dB)
-            ax.set_title("Periodogram Plot")
+            ax.set_title(f"Periodogram Plot\n Window Type = {window_value}, Scaling = {scaling_value}")
             ax.set_xlabel("Frequency (Hz)")
-            ax.set_ylabel("Power (dB/Hz)")
+            if scaling_value == 'spectrum':
+                ax.set_ylabel('Power(dB)')
+            else:
+                ax.set_ylabel('Power/Frequency (dB/Hz)')
 
             self.displayCanvas(fig, layout)
         except Exception as e:
@@ -406,8 +385,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.canvas = FigureCanvas(fig)
         layout.addWidget(self.canvas)
         self.canvas.draw()
-        # self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow, coordinates=True)
-        # layout.insertWidget(0, self.toolbar)
+
 
     def getTimeAndWindow(self):
         """Parses start time and window duration."""
@@ -436,11 +414,10 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             self.metrics['Mean RR Interval (ms)'] = np.mean(rr_intervals) * 1000
             self.metrics['Standard Deviation of NN Intervals- SDNN (ms)'] = np.std(rr_intervals) * 1000
             self.metrics['Root Mean Square of Successive Differences- RMSSD (ms)'] = np.sqrt(np.mean(np.diff(rr_intervals) ** 2)) * 1000
-            self.metrics['IQR RR Interval (ms)'] = iqr(rr_intervals) * 1000
+            self.metrics['Interquartile range of RR intervals (ms)'] = iqr(rr_intervals) * 1000
 
             self.updateResultsTable(self.metrics)
-            # Frequency-Domain HRV Metrics (optional)
-            # You can add power spectral density analysis here for LF and HF components
+
         except Exception as e:
             print(e)
 
@@ -477,139 +454,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def clearResultsTable(self):
         self.ui.SignalresultsTable.setRowCount(0)
 
-    # def plotSignal(self):
-    #         # Clear existing canvas and toolbar if they exist
-    #         try:
-    #             layout = self.ui.mplwindow.layout()
-    #             if self.canvas:
-    #                 layout.removeWidget(self.canvas)
-    #                 self.canvas.deleteLater()
-    #                 self.canvas = None
-    #             if self.toolbar:
-    #                 layout.removeWidget(self.toolbar)
-    #                 self.toolbar.deleteLater()
-    #                 self.toolbar = None
-    #
-    #             # Determine start time and window duration
-    #             try:
-    #                 # Parse start time from QLineEdit (hh:mm:ss)
-    #                 start_time_str = self.ui.timeInput.text()
-    #                 if start_time_str:
-    #                     h, m, s = map(int, start_time_str.split(':'))
-    #                     start_time = h * 3600 + m * 60 + s  # Convert to seconds
-    #                 else:
-    #                     start_time = 0  # Default to 0 if no input is provided
-    #             except ValueError:
-    #                 QMessageBox.warning(self, "Invalid Input", "Please enter time in hh:mm:ss format.")
-    #                 return
-    #
-    #             # Get the window duration from QSlider (default: 5 seconds)
-    #             window_duration = self.ui.windowDurationSlider.value()
-    #
-    #             # Calculate start and end indices
-    #             start_index = int(start_time * self.data.fs)  # Sampling rate to index
-    #             end_index = start_index + int(window_duration * self.data.fs)
-    #
-    #             # Boundary checks
-    #             if start_index < 0 or end_index > len(self.signal):
-    #                 QMessageBox.warning(self, "Invalid Range", "The specified range is out of bounds.")
-    #                 return
-    #
-    #             # Extract the segment of the signal
-    #             segment = self.signal[start_index:end_index]
-    #             segment_time = self.time[start_index:end_index]
-    #
-    #             peaks_indices = [i for i in self.peaks if start_index <= i < end_index]
-    #             peaks_indices = np.array(peaks_indices) - start_index  # Adjust indices to the segment
-    #
-    #             # Format time to hh:mm:ss for x-axis
-    #             formatted_time = [time.strftime("%H:%M:%S", time.gmtime(t)) for t in segment_time]
-    #
-    #             # Create subplots
-    #             fig, ax = plt.subplots(1, 3, figsize=(10, 5))  # Create one figure with 3 subplots
-    #
-    #             # Plot Signal
-    #             ax[0].plot(segment_time, segment)
-    #             ax[0].plot(segment_time[peaks_indices], segment[peaks_indices], "x", label='Peaks')
-    #             ax[0].set_title(f"Signal (Duration: {window_duration}s, Start: {start_time}s, Stop: {start_time + window_duration}s)")
-    #             ax[0].set_xlabel('Time (s)')
-    #             ax[0].set_ylabel('Amplitude')
-    #             ax[0].tick_params(axis='x', rotation=45)  # Rotate x-axis labels for readability
-    #             # ax[0].xaxis.set_major_locator(plt.MaxNLocator(10))  # Adjust number of x-ticks
-    #             ax[0].xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-    #             ax[0].tick_params(axis='x', rotation=45)  # Rotate for readability
-    #             fig.autofmt_xdate()  # Auto-format the x-axis dates or time
-    #
-    #             # fig, ax = plt.subplots(1, 3, figsize=(10, 5))  # Create one figure with 3 subplots
-    #             # ax[0].plot(self.time, self.signal)
-    #             # ax[0].set_title("Loaded Signal Data")
-    #             # ax[0].set_xlabel('Time [s]')
-    #             # ax[0].set_ylabel("Amplitude")
-    #             # for tick in ax.xaxis.get_major_ticks():
-    #             #     tick.label.set_fontsize(18)  # Adjust the fontsize for x ticks
-    #             #
-    #             # for tick in ax.yaxis.get_major_ticks():
-    #             #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
-    #
-    #             # FFT
-    #             # Get the selected window and scaling values
-    #             norm_value = self.ui.NormcomboBox.currentText()
-    #             # Step 1: Calculate the FFT
-    #             fft_values = np.fft.fft(segment, norm=norm_value)
-    #             n = len(segment)
-    #             # fft_values = np.fft.fft(self.signal, norm=norm_value)
-    #             # # Step 2: Calculate the frequencies corresponding to the FFT values
-    #             # n = len(self.signal)
-    #             frequencies = np.fft.fftfreq(n, d=1 / self.data.fs)
-    #
-    #             # Step 3: Get the positive frequencies and the corresponding FFT values
-    #             positive_frequencies = frequencies[:n // 2]
-    #             positive_fft_values = np.abs(fft_values[:n // 2])  # Magnitude of the FFT
-    #
-    #             # Step 4: Plot the FFT
-    #             ax[1].clear()
-    #             ax[1].plot(positive_frequencies, positive_fft_values)
-    #             ax[1].set_title(f'Frequency Spectrum of the Signal\n Norm = {norm_value}')
-    #             ax[1].set_xlabel('Frequency (Hz)')
-    #             ax[1].set_ylabel('Amplitude')
-    #             # Periodogram
-    #             scaling_value = self.ui.ScalingcomboBox.currentText()
-    #             window_value = self.ui.WindowcomboBox.currentText()
-    #
-    #             # f, Pxx = periodogram(self.signal, fs=self.data.fs, scaling=scaling_value,
-    #             #                      window=window_value)
-    #             f, Pxx = periodogram(segment, fs=self.data.fs, scaling=scaling_value, window=window_value)
-    #
-    #             Pxx_dB = 10 * np.log10(Pxx)  # Convert power to dB
-    #
-    #
-    #             ax[2].clear()
-    #             ax[2].plot(f, Pxx_dB)
-    #             ax[2].set_title(f'Periodogram of the Signal\n Window Type = {window_value}, Scaling = {scaling_value}'
-    #                       )
-    #             ax[2].set_xlabel('Frequency (Hz)')
-    #             if scaling_value == 'spectrum':
-    #                 ax[2].set_ylabel('Power(dB/Hz)')
-    #             else:
-    #                 ax[2].set_ylabel('Power/Frequency (dB/Hz)')
-    #             # for tick in ax.xaxis.get_major_ticks():
-    #             #     tick.label.set_fontsize(18)  # Adjust the fontsize for x ticks
-    #             #
-    #             # for tick in ax.yaxis.get_major_ticks():
-    #             #     tick.label.set_fontsize(18)  # Adjust the fontsize for y ticks
-    #
-    #
-    #
-    #             fig.tight_layout()
-    #             self.canvas = FigureCanvas(fig)
-    #             layout = self.ui.mplwindow.layout()
-    #             layout.addWidget(self.canvas)
-    #             self.canvas.draw()
-    #             self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow, coordinates=True)
-    #             layout.insertWidget(0, self.toolbar)  # Insert at the top of the layout
-    #
-    #         except Exception as e:
-    #          print(e)
 
     def updateSliderLabel(self):
         try:
@@ -692,14 +536,13 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
     def apply_thresholding(self):
         """Apply thresholding based on slider value."""
-        # self.ui.finalizeThresholdCheckbox.setEnabled(True)
         try:
             if hasattr(self, 'processed_image'):
                 self.history.append(self.processed_image.copy())
                 gray_image = cv2.cvtColor(self.original_image, cv2.COLOR_RGB2GRAY)
-                _, thresholded = cv2.threshold(gray_image,127, 255, cv2.THRESH_OTSU)
+                threshold_value = self.ui.thresholdValueInput.value()
+                _, thresholded = cv2.threshold(gray_image,threshold_value, 255, cv2.THRESH_BINARY)
                 self.processed_image = cv2.cvtColor(thresholded, cv2.COLOR_GRAY2RGB)
-                # self.ui.thresholdValueLabel.setText(f"Threshold Level: {self.ui.sliderThreshold.value()} (Min: 0, Max: 255)")
                 self.display_image(self.processed_image, self.ui.labelProcessedImage)
                 self.ui.btnUndo.setEnabled(True)
                 self.ui.btnRedo.setEnabled(False)
@@ -709,23 +552,24 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
 
     def apply_blurring(self):
         """Apply a selected blur filter to the image."""
-        self.history.append(self.processed_image.copy())
-        if hasattr(self, 'original_image'):
-            self.processed_image = cv2.GaussianBlur(self.processed_image, (5, 5), 0)
-        else :
-            self.processed_image = cv2.GaussianBlur(self.original_image, (5, 5), 0)
-        self.display_image(self.processed_image, self.ui.labelProcessedImage)
-        self.ui.btnUndo.setEnabled(True)
-        self.ui.btnRedo.setEnabled(False)
+        try:
+            self.history.append(self.processed_image.copy())
+            kernel_size = int(self.ui.blurValueInput.currentText())  # Get selected kernel size
+            if hasattr(self, 'original_image'):
+                self.processed_image = cv2.GaussianBlur(self.processed_image, (kernel_size, kernel_size), 0)
+            else :
+                self.processed_image = cv2.GaussianBlur(self.original_image, (kernel_size, kernel_size), 0)
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.ui.btnUndo.setEnabled(True)
+            self.ui.btnRedo.setEnabled(False)
+        except Exception as e:
+            print(f"Error in denoising: {e}")
 
     def apply_denoising(self):
         try:
             self.history.append(self.processed_image.copy())
-            if len(self.processed_image.shape) == 3:  # Convert to grayscale if RGB
-                gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
-            else:
-                gray_image = self.processed_image
-            self.processed_image = cv2.fastNlMeansDenoising(gray_image, None, 10, 7, 21)
+
+            self.processed_image = cv2.fastNlMeansDenoising(self.processed_image, None, 10, 7, 21)
             self.display_image(self.processed_image, self.ui.labelProcessedImage)
             self.ui.btnUndo.setEnabled(True)
             self.ui.btnRedo.setEnabled(False)
@@ -741,13 +585,31 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
             else:
                 gray_image = self.processed_image
-            self.processed_image = cv2.Canny(gray_image, 70, 135)
+            self.processed_image = cv2.Canny(gray_image, 100, 200)
             self.display_image(self.processed_image, self.ui.labelProcessedImage)
             self.ui.btnUndo.setEnabled(True)
             self.ui.btnRedo.setEnabled(False)
 
         except Exception as e:
             print(f"Error in edge detection: {e}")
+
+    def apply_boundary(self):
+        try:
+            self.history.append(self.processed_image.copy())
+            if len(self.processed_image.shape) == 3:  # Convert to grayscale if RGB
+                gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+            else:
+                gray_image = self.processed_image
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+
+            eroded_image = cv2.erode(gray_image, kernel, iterations=1)
+            self.processed_image = gray_image - eroded_image
+            self.display_image(self.processed_image, self.ui.labelProcessedImage)
+            self.ui.btnUndo.setEnabled(True)
+            self.ui.btnRedo.setEnabled(False)
+
+        except Exception as e:
+            print(f"Error in extracting boundary: {e}")
 
     # Morphological Operations
 
@@ -758,7 +620,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             if len(self.processed_image.shape) == 3:
                 # Convert the processed image to grayscale and then to a binary image
                 self.processed_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
-            _, self.processed_image = cv2.threshold(self.processed_image, 127, 255, cv2.THRESH_BINARY)
+            _, self.processed_image = cv2.threshold(self.processed_image, 120, 255, cv2.THRESH_BINARY)
             labelled = label(self.processed_image)  # label all the constituents
             cleared = clear_border(labelled)
             self.processed_image = (cleared > 0).astype(np.uint8) * 255  # Convert back to binary
@@ -774,11 +636,25 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         try:
             self.history.append(self.processed_image.copy())
             # Convert to grayscale if necessary
-            if len(self.processed_image.shape) == 3:  # RGB
+            if len(self.processed_image.shape) == 3 or len(np.unique(self.processed_image)) > 2:  # RGB
                 gray_image = cv2.cvtColor(self.processed_image, cv2.COLOR_RGB2GRAY)
+                seed = np.copy(gray_image)
+                seed[1:-1, 1:-1] = 0  # Set the interior pixels to 0
+
+                # Dilate the seed image iteratively until it reaches the original image
+                dilated = seed.copy()
+                while True:
+                    dilated_prev = dilated.copy()
+                    dilated = cv2.dilate(dilated, np.ones((5, 5), np.uint8))
+                    dilated = np.minimum(dilated, gray_image)
+                    if np.array_equal(dilated, dilated_prev):
+                        break
+
+                # Subtract the dilated result to get the filled holes
+                self.processed_image = gray_image - dilated
             else:
                 gray_image = self.processed_image
-            _, binary_image = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
+            _, binary_image = cv2.threshold(gray_image, 120, 255, cv2.THRESH_BINARY)
             self.processed_image = binary_fill_holes(binary_image).astype(np.uint8) * 255
             self.display_image(self.processed_image, self.ui.labelProcessedImage)
             self.ui.btnUndo.setEnabled(True)
@@ -796,7 +672,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 gray_image = self.processed_image
             _, binary_image = cv2.threshold(gray_image, 127, 255, cv2.THRESH_BINARY)
             labelled = label(binary_image)
-            cleaned = remove_small_objects(labelled, min_size=500,connectivity=8)
+            min_size = self.ui.minSizeInput.value()
+            cleaned = remove_small_objects(labelled, min_size=min_size,connectivity=8)
             self.processed_image = (cleaned > 0).astype(np.uint8) * 255  # Convert back to binary
             self.display_image(self.processed_image, self.ui.labelProcessedImage)
             self.ui.btnUndo.setEnabled(True)
@@ -967,6 +844,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         # Reset internal states (if any)
         self.original_image = None
         self.processed_image = None
+        self.history = []
 
 
     def save_state(self):
@@ -974,7 +852,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         try:
             if self.processed_image is not None:
                 self.history.append(self.processed_image)
-                # self.redo_stack.clear()  # Clear redo stack after a new operation
                 # Enable the Undo button after an image change
                 self.ui.btnUndo.setEnabled(True)
                 # After updating, disable the Redo button since a new change is made
@@ -1011,10 +888,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         if len(self.redo_stack) == 0:
             self.ui.btnRedo.setEnabled(False)
 
-    # def saveImage(self):
-    #     filename, ext = QFileDialog.getSaveFileName(self, 'Save File', '', 'Images Files (*.png)')
-    #     if filename:
-    #         cv2.imwrite(filename, self.out_image)
+
 
     def saveImage(self):
         """Save the processed image."""
@@ -1048,21 +922,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             # # After updating, disable the Redo button since a new change is made
             # self.ui.btnRedo.setEnabled(False)
 
-    # Thresholding function
-    # def apply_threshold(self, image, threshold):
-    #     if self.ui.finalizeThresholdCheckbox.isChecked():
-    #         self.history.append(self.processed_image.copy())
-    #     # Convert to grayscale if necessary
-    #     if len(image.shape) == 3:  # RGB
-    #         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    #     else:
-    #         gray_image = image
-    #
-    #     # Apply thresholding
-    #     _, thresholded_image = cv2.threshold(gray_image, threshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    #     return thresholded_image
-
-
 
     # Function to convert NumPy array to QPixmap
     def numpy_to_qpixmap(self,array):
@@ -1087,10 +946,364 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             thresholded = self.apply_threshold(self.contrast_enhanced, value)
             pixmap = self.numpy_to_qpixmap(thresholded)
             self.ui.labelSegmentedImage.setPixmap(pixmap.scaled(self.ui.labelSegmentedImage.size(), QtCore.Qt.KeepAspectRatio))
-            # self.ui.labelOriginalImage.setPixmap(self.pixmap.scaled(self.ui.labelOriginalImage.size(), QtCore.Qt.KeepAspectRatio))
 
         except Exception as e:
             print(e)
+
+    def load_video(self):
+        """Load a video file and display the first frame."""
+        try:
+            options = QFileDialog.Options()
+            file_path, _ = QFileDialog.getOpenFileName(self, "Open Video File", "",
+                                                       "Videos (*.mp4 *.avi *.mov)", options=options)
+            if file_path:
+                self.video_path = file_path
+                self.cap = cv2.VideoCapture(file_path)
+
+                if not self.cap.isOpened():
+                    raise Exception("Failed to load video.")
+
+                self.original_video_frames = []
+                while True:
+                    ret, frame = self.cap.read()
+                    if not ret: break
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    self.original_video_frames.append(frame)
+
+                self.processed_video_frames = [f.copy() for f in self.original_video_frames]
+                self.display_frame(self.original_video_frames[0], self.ui.labelOriginalVideo)
+                QMessageBox.information(self, "Success", "Video loaded!")
+        except Exception as e:
+            print(f"load_video error: {e}")
+
+    def play_video(self):
+        """Play/resume video from current position."""
+        try:
+            # Only reset frame index if not paused
+            if not hasattr(self, 'play_frame_index') or not self.is_paused:
+                self.play_frame_index = 0
+
+            self.is_paused = False  # Clear pause state
+
+            # Stop existing timer if any
+            if hasattr(self, 'play_timer') and self.play_timer.isActive():
+                self.play_timer.stop()
+
+            self.play_timer = QtCore.QTimer(self)
+
+            def update_frames():
+                if self.play_frame_index < len(self.original_video_frames):
+                    # Update original frame
+                    self.display_frame(
+                        self.original_video_frames[self.play_frame_index],
+                        self.ui.labelOriginalVideo
+                    )
+                    # Update processed frame
+                    if self.processed_video_frames:
+                        is_gray = len(self.processed_video_frames[self.play_frame_index].shape) == 2
+                        self.display_frame(
+                            self.processed_video_frames[self.play_frame_index],
+                            self.ui.labelProcessedVideo,
+                            is_gray=is_gray
+                        )
+                    self.play_frame_index += 1
+                else:
+                    self.play_timer.stop()
+                    self.play_frame_index = 0  # Reset for next play
+
+            self.play_timer.timeout.connect(update_frames)
+            self.play_timer.start(50)
+        except Exception as e:
+            print(f"play_video error: {e}")
+
+    def pause_video(self):
+        """Pause video while retaining current position."""
+        try:
+            if hasattr(self, 'play_timer') and self.play_timer.isActive():
+                self.play_timer.stop()
+                self.is_paused = True  # Set pause state
+        except Exception as e:
+            print(f"pause_video error: {e}")
+
+    def stop_video(self):
+        """Stop all playback and reset displays."""
+        try:
+            # Stop all possible timers
+            for timer_name in ['play_timer', 'display_timer']:
+                if hasattr(self, timer_name):
+                    timer = getattr(self, timer_name)
+                    if timer.isActive(): timer.stop()
+
+            # Reset frame indices
+            self.play_frame_index = 0
+
+            # Show first frames
+            if self.original_video_frames:
+                self.display_frame(self.original_video_frames[0], self.ui.labelOriginalVideo)
+            if self.processed_video_frames:
+                is_gray = len(self.processed_video_frames[0].shape) == 2
+                self.display_frame(self.processed_video_frames[0], self.ui.labelProcessedVideo, is_gray)
+        except Exception as e:
+            print(f"stop_video error: {e}")
+        except Exception as e:
+            print(f"Error in stop_video: {e}")
+
+    def update_frame(self, frames, label, is_gray=False):
+        """Update a single frame on the specified QLabel."""
+        try:
+            if self.frame_index < len(frames):
+                frame = frames[self.frame_index]
+                if is_gray:
+                    q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0],
+                                     QImage.Format_Grayscale8)
+                else:
+                    q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format_RGB888)
+
+                label.setPixmap(QPixmap.fromImage(q_image).scaled(label.width(), label.height(), Qt.KeepAspectRatio))
+                self.frame_index += 1
+            else:
+                self.frame_index = 0  # Loop back to the start
+        except Exception as e:
+            print(f"Error in update_frame: {e}")
+
+    def convert_video_to_grayscale(self):
+        """Convert video to grayscale."""
+        try:
+            self.stop_video()
+            self.processed_video_frames = [
+                cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                for frame in self.original_video_frames
+            ]
+            # Immediately show first processed frame
+            self.display_frame(self.processed_video_frames[0], self.ui.labelProcessedVideo, is_gray=True)
+        except Exception as e:
+            print(f"grayscale error: {e}")
+
+    def apply_edge_detection(self):
+        """Apply edge detection to video."""
+        try:
+            self.stop_video()
+            self.processed_video_frames = [
+                cv2.Canny(cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY), 100, 200)
+                for frame in self.original_video_frames
+            ]
+            self.display_frame(self.processed_video_frames[0], self.ui.labelProcessedVideo, is_gray=True)
+        except Exception as e:
+            print(f"edge detection error: {e}")
+
+    def apply_videothresholding(self):
+        """Apply thresholding to the video and display the processed video."""
+        try:
+            self.stop_video()
+            self.processed_video_frames = [
+                cv2.threshold(cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY), self.ui.thresholdVideoInput.value(), 255, cv2.THRESH_BINARY)[1]
+                for frame in self.original_video_frames
+            ]
+            self.display_video(self.processed_video_frames[0], self.ui.labelProcessedVideo, is_gray=True)
+        except Exception as e:
+            print(f"Error in apply_thresholding: {e}")
+
+    def display_video(self, frames, label, is_gray=False):
+        """Play a video sequence on a specific label."""
+        try:
+            # Stop any existing display timer
+            if hasattr(self, 'display_timer') and self.display_timer.isActive():
+                self.display_timer.stop()
+
+            self.display_timer = QtCore.QTimer(self)
+            self.display_frame_index = 0
+
+            def update_display():
+                if self.display_frame_index < len(frames):
+                    self.display_frame(frames[self.display_frame_index], label, is_gray)
+                    self.display_frame_index += 1
+                else:
+                    self.display_timer.stop()
+
+            # Show first frame immediately
+            if frames:
+                self.display_frame(frames[0], label, is_gray)
+
+            self.display_timer.timeout.connect(update_display)
+            self.display_timer.start(50)
+        except Exception as e:
+            print(f"display_video error: {e}")
+
+    def visualize_channels(self):
+        try:
+            # Open the video file
+            video_path = self.video_path
+            cap = cv2.VideoCapture(video_path)
+
+            # Define the color ranges for blue, red, and green in HSV
+            lower_blue = np.array([100, 150, 50])  # Adjust the ranges for better detection
+            upper_blue = np.array([140, 255, 255])
+
+            lower_red1 = np.array([0, 150, 50])
+            upper_red1 = np.array([10, 255, 255])
+            lower_red2 = np.array([160, 150, 50])
+            upper_red2 = np.array([180, 255, 255])
+
+            lower_green = np.array([35, 100, 100])
+            upper_green = np.array([85, 255, 255])
+
+            # Process each frame of the video
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    # Release and reinitialize the video capture to restart playback
+                    cap.release()
+                    cap = cv2.VideoCapture(video_path)
+                    continue
+
+                # Convert the frame to HSV
+                hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+                # Create masks for each color
+                blue_mask = cv2.inRange(hsv_frame, lower_blue, upper_blue)
+                red_mask1 = cv2.inRange(hsv_frame, lower_red1, upper_red1)
+                red_mask2 = cv2.inRange(hsv_frame, lower_red2, upper_red2)
+                red_mask = red_mask1 | red_mask2  # Combine both red ranges
+                green_mask = cv2.inRange(hsv_frame, lower_green, upper_green)
+
+                # Extract regions for each color
+                blue_region = cv2.bitwise_and(frame, frame, mask=blue_mask)
+                red_region = cv2.bitwise_and(frame, frame, mask=red_mask)
+                green_region = cv2.bitwise_and(frame, frame, mask=green_mask)
+                # Display the results
+                cv2.imshow('Original Video', frame)
+                cv2.imshow('Blue Region', blue_region)
+                cv2.imshow('Red Region', red_region)
+                cv2.imshow('Green Region', green_region)
+
+                # Press 'q' to exit
+                if cv2.waitKey(50) & 0xFF == ord('q'):
+                    break
+
+            # Release resources
+            cap.release()
+            cv2.destroyAllWindows()
+        except Exception as e:
+            print(e)
+
+    def create_color_window(self, color_name, frames):
+        """Create and display a window for a specific color."""
+        try:
+            # Create a new window
+            window = QtWidgets.QWidget()
+            window.setWindowTitle(f"{color_name} Regions")
+            layout = QtWidgets.QVBoxLayout(window)
+
+            video_label = QtWidgets.QLabel(window)
+            video_label.setAlignment(QtCore.Qt.AlignCenter)
+            layout.addWidget(video_label)
+
+            # Timer for frame playback
+            timer = QtCore.QTimer(window)
+
+            def update_frame():
+                if frames:
+                    frame = frames.pop(0)  # Get the next frame
+                    q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format_RGB888)
+                    video_label.setPixmap(QPixmap.fromImage(q_image).scaled(
+                        video_label.width(), video_label.height(), Qt.KeepAspectRatio))
+                # else:
+                #     timer.stop()  # Stop when all frames are played
+
+            timer.timeout.connect(update_frame)
+            timer.start(100)  # Adjust playback speed
+
+            window.show()
+            return window  # Return the window reference
+        except Exception as e:
+            print(f"Error in create_color_window: {e}")
+
+    def save_video(self):
+        """Save the processed video."""
+        try:
+            if not self.processed_video_frames:
+                QMessageBox.warning(self, "Error", "No processed video to save!")
+                return
+
+            file_path, _ = QFileDialog.getSaveFileName(self, "Save Processed Video", "",
+                                                       "Videos (*.mp4 *.avi *.mov)")
+            if file_path:
+                height, width = self.processed_video_frames[0].shape[:2]
+                is_color = len(self.processed_video_frames[0].shape) == 3
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for mp4
+                out = cv2.VideoWriter(file_path, fourcc, 20.0, (width, height), is_color)
+
+                for frame in self.processed_video_frames:
+                    if not is_color:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+                    out.write(frame)
+
+                out.release()
+                QMessageBox.information(self, "Success", "Processed video saved successfully!")
+        except Exception as e:
+            print(f"Error in save_video: {e}")
+
+    def clear_videodisplay(self):
+        """Clear the video display and reset internal states."""
+        self.ui.labelOriginalVideo.clear()
+        self.ui.labelOriginalVideo.setText("Original Video")
+        self.ui.labelProcessedVideo.clear()
+        self.ui.labelProcessedVideo.setText("Processed Video")
+        self.original_video_frames = []
+        self.processed_video_frames = []
+
+    def display_frame(self, frame, label, is_gray=False):
+        """Display a single frame on the specified QLabel."""
+        try:
+            if is_gray:
+                q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format_Grayscale8)
+            else:
+                q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QImage.Format_RGB888)
+
+            label.setPixmap(QPixmap.fromImage(q_image).scaled(label.width(), label.height(), Qt.KeepAspectRatio))
+        except Exception as e:
+            print(f"Error in display_frame: {e}")
+
+    def show_video(self, frames, title, is_gray=False):
+        """Display video frames in a new persistent window."""
+        try:
+            if not frames:
+                raise ValueError("No frames provided to display.")
+
+            window = QtWidgets.QWidget()
+            window.setWindowTitle(title)
+            layout = QtWidgets.QVBoxLayout(window)
+
+            video_label = QtWidgets.QLabel(window)
+            video_label.setAlignment(QtCore.Qt.AlignCenter)
+            layout.addWidget(video_label)
+
+            current_frame = 0
+
+            def update_frame():
+                nonlocal current_frame
+                if current_frame < len(frames):
+                    frame = frames[current_frame]
+                    if is_gray:
+                        q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0],
+                                         QImage.Format_Grayscale8)
+                    else:
+                        q_image = QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0],
+                                         QImage.Format_RGB888)
+                    video_label.setPixmap(QPixmap.fromImage(q_image).scaled(video_label.width(), video_label.height(),
+                                                                            Qt.KeepAspectRatio))
+                    current_frame += 1
+                else:
+                    timer.stop()
+
+            timer = QtCore.QTimer(window)
+            timer.timeout.connect(update_frame)
+            timer.start(50)
+
+            window.show()
+            return window  # Return the window reference
+        except Exception as e:
+            print(f"Error in show_video: {e}")
 
     def loadCSV(self):
         try:
@@ -1182,6 +1395,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to insert data: {e}")
 
+
     def updateData(self):
         try:
             if not hasattr(self, 'dbConnection'):
@@ -1222,6 +1436,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to update data: {e}")
 
+
+
     def retrieveData(self):
         try:
             if not hasattr(self, 'dbConnection'):
@@ -1247,7 +1463,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                     QMessageBox.warning(None, "Warning", "Filter value cannot be empty unless 'All Data' is selected.")
                     return
 
-                query = f"SELECT * FROM PatientData WHERE {selectedField} LIKE %s"
+                query = f"SELECT * FROM PatientData WHERE {selectedField} = %s"
                 cursor.execute(query, (f"{filterValue}",))
 
 
@@ -1296,129 +1512,721 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to delete data: {e}")
 
+    # Data analysis
+    def collect_data_from_database(self):
+        """
+        Collect data from the database.
 
-    def loadExcelData(self):
+        :param db_path: Path to the SQLite database.
+        :param table_name: Table name containing patient data.
+        :return: DataFrame containing the table data.
+        """
+        dbConnection = mysql.connector.connect(host="localhost", user="root", password="", database="patient_data")
+        # cursor = dbConnection.cursor()
+        query = f"SELECT * FROM patientdata"
+
+        data = pd.read_sql(query, dbConnection)
+        dbConnection.close()
+        return data
+
+    def generate_dashboard(self, data):
+        # Total Patients
+        total_patients = len(data)
+        # Gender Distribution Pie Chart
+        gender_counts = data['Sex'].value_counts()
+        gender_fig = go.Figure(data=[go.Pie(labels=gender_counts.index, values=gender_counts.values)])
+        gender_fig.update_layout(title="Gender Distribution",width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        gender_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+        import plotly.colors as pc
+        # Generate a color scale with the same length as unique_continents
+        continent_colors = pc.qualitative.Prism[:6]  # Choose a qualitative palette
+
+        country_fig = px.sunburst(data, path=['Continent', 'Country'], values=data['PatientID'].value_counts().values, color='Continent', color_discrete_sequence=continent_colors)
+        country_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2', '#8E44AD', '#3498DB']))
+        country_fig.update_layout(title="Continent & Country Distribution",width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+
+        income_fig = px.violin(data, y="Income", x="Smoking", box=True, points="outliers",
+                        hover_data=data.columns)
+        income_fig.update_layout(title="Income Distribution",width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))  # Dark blue-gray background
+
+        income_fig.update_traces(marker=dict(color='#7B68EE'), box_visible=True, line_color='#6A0DAD')
+
+
+
+        diet_fig = go.Figure(data=[go.Pie(labels=["Healthy", "Average", "Unhealthy"], values=data['Diet'].value_counts())])
+        diet_fig.update_layout(title="Diet Distribution", width=400, height=400,
+                                   margin=dict(t=50, l=50, r=50, b=50))
+        diet_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+
+        medication_fig = go.Figure(
+            data=[go.Pie(labels=["0", "1"], values=data['MedicationUse'].value_counts())])
+        medication_fig.update_layout(title="Medication Use Distribution", width=400, height=400,
+                               margin=dict(t=50, l=50, r=50, b=50))
+        medication_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+
+        smoking_fig = go.Figure(
+            data=[go.Pie(labels=["0", "1"], values=data['Smoking'].value_counts())])
+        smoking_fig.update_layout(title="Smoking Distribution", width=400, height=400,
+                                  margin=dict(t=50, l=50, r=50, b=50))
+        smoking_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+
+        familyhistory_fig = go.Figure(
+            data=[go.Pie(labels=["0", "1"], values=data['FamilyHistory'].value_counts())])
+        familyhistory_fig.update_layout(title="FamilyHistory Distribution", width=400, height=400,
+                                  margin=dict(t=50, l=50, r=50, b=50))
+        familyhistory_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+
+        # Histograms
+        histograms = []
+        for col in ['Age', 'Cholesterol', 'HeartRate', 'BMI']:
+            hist_fig = go.Figure(data=[go.Histogram(x=data[col], nbinsx=20)])
+            hist_fig.update_traces(marker=dict(color='#6A0DAD'))
+            hist_fig.update_layout(title=f"{col} Distribution", xaxis_title=col, yaxis_title="Count",width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+            histograms.append(hist_fig.to_html(full_html=False))
+
+        # Boxplots
+        boxplots = []
+        for col in [ 'Triglycerides','BMI', 'StressLevel']:
+            box_fig = go.Figure(data=[go.Box(y=data[col])])
+            box_fig.update_traces(marker=dict(color='#6A0DAD'),  # Deep purple boxes
+                                  boxmean=True,  # Show mean line
+                                  line_color='#6A0DAD',  # Purple border
+                                  fillcolor='#8A2BE2',  # Slightly lighter fill
+                                  jitter=0.3,  # Spread points for visibility
+                                  whiskerwidth=0.8)
+            box_fig.update_layout(title=f"{col} Boxplot", yaxis_title=col,width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+            boxplots.append(box_fig.to_html(full_html=False))
+
+        # Diabetes and Heart Attack Risk Distribution
+        diabetes_fig = go.Figure(data=[go.Pie(labels=["Yes", "No"], values=data['Diabetes'].value_counts())])
+        diabetes_fig.update_layout(title="Diabetes Distribution",width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        diabetes_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+
+        heart_risk_fig = go.Figure(
+            data=[go.Pie(labels=["At Risk", "Not At Risk"], values=data['HeartAttackRisk'].value_counts())])
+        heart_risk_fig.update_layout(title="Heart Attack Risk Distribution",width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        heart_risk_fig.update_traces(marker=dict(colors=['#6A0DAD', '#5DADE2']))
+
+        # Dashboard HTML
+        dashboard_html = f"""
+        <h2>Data Summary</h2>
+        <h3>Total Patients: {total_patients}</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <div style="flex: 1; min-width: 100px;">{gender_fig.to_html(full_html=False)}</div>
+            <div style="flex: 1; min-width: 100px;">{country_fig.to_html(full_html=False)}</div>
+            <div style="flex: 1; min-width: 100px;">{diet_fig.to_html(full_html=False)}</div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <div style="flex: 1; min-width: 100px;">{smoking_fig.to_html(full_html=False)}</div>
+            <div style="flex: 1; min-width: 100px;">{medication_fig.to_html(full_html=False)}</div>
+            <div style="flex: 1; min-width: 100px;">{familyhistory_fig.to_html(full_html=False)}</div>
+            
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <div style="flex: 1; min-width: 100px;">{diabetes_fig.to_html(full_html=False)}</div>
+            <div style="flex: 1; min-width: 100px;">{income_fig.to_html(full_html=False)}</div>
+            <div style="flex: 1; min-width: 100px;">{heart_risk_fig.to_html(full_html=False)}</div>
+        
+        </div>
+        <h2>Histograms</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            {''.join(f'<div style="flex: 1; min-width: 100px;">{hist}</div>' for hist in histograms)}
+        </div>
+        <h2>Boxplots</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            {''.join(f'<div style="flex: 1; min-width: 100px;">{box}</div>' for box in boxplots)}
+        </div>
+        """
+        # Save the HTML to a file
+        with open("dashboard.html", "w", encoding="utf-8") as file:
+            file.write(dashboard_html)
+        print("Dashboard HTML saved as 'dashboard.html'.")
+        return dashboard_html
+
+    def generate_gender_analysis(self, df):
+        """
+           Generate HTML for visualizing features by patient gender.
+
+           :param df: Pandas DataFrame containing the patient data.
+           :return: Combined HTML containing multiple plots.
+           """
+        # Feature 1: BMI Distribution by Gender
+        bmi_fig = px.box(df, x="Sex", y="BMI", title="BMI Distribution by Gender",color='Sex')
+        bmi_fig.update_traces(marker=dict(color='#6A0DAD'),  # Deep purple boxes
+                              boxmean=True,  # Show mean line
+                              line_color='#6A0DAD',  # Purple border
+                              fillcolor='#8A2BE2',  # Slightly lighter fill
+                              jitter=0.3,  # Spread points for visibility
+                              whiskerwidth=0.8)
+        bmi_html = bmi_fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+        # Feature 2: Stress Level Distribution by Gender
+        stress_fig = px.histogram(df, x="StressLevel", color="Sex", barmode="group",
+                                  title="Stress Level Distribution by Gender", facet_col="Sex", text_auto=True, color_discrete_map={"Male": "#6A0DAD", "Female": "#5DADE2"})
+        stress_html = stress_fig.to_html(full_html=False)
+
+        # Feature 3: Heart Attack Risk by Gender
+        heart_attack_fig = px.histogram(
+            df, x="Sex", color="HeartAttackRisk", barmode="group",
+            title="Heart Attack Risk by Gender", text_auto=True,
+            color_discrete_map={1.0: "#6A0DAD", 0.0: "#5DADE2"}
+        )
+        heart_attack_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        heart_attack_html = heart_attack_fig.to_html(full_html=False)
+
+        # Feature 4: Smoking Habits by Gender
+        smoking_fig = px.histogram(
+            df, x="Sex", color="Smoking", barmode="group",
+            title="Smoking Habits by Gender", text_auto=True,
+            color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"}
+        )
+        smoking_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        smoking_html = smoking_fig.to_html(full_html=False)
+
+        # Feature 5: Alcohol Consumption by Gender
+        alcohol_fig = px.histogram(
+            df, x="Sex", color="AlcoholConsumption", barmode="group",
+            title="Alcohol Consumption by Gender", text_auto=True,
+            color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"}
+        )
+        alcohol_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        alcohol_html = alcohol_fig.to_html(full_html=False)
+
+        # Feature 6: Diabetes Distribution by Gender
+        diabetes_fig = px.histogram(
+            df, x="Sex", color="Diabetes", barmode="group",
+            title="Diabetes Distribution by Gender", text_auto=True,
+            color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"}
+        )
+        diabetes_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        diabetes_html = diabetes_fig.to_html(full_html=False)
+
+        # Feature 7: Family History by Gender
+        family_fig = px.histogram(
+            df, x="Sex", color="FamilyHistory", barmode="group",
+            title="Family History by Gender", text_auto=True,
+            color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"}
+        )
+        family_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        family_html = family_fig.to_html(full_html=False)
+
+        # Feature 8: Previous Heart Problems by Gender
+        previous_heart_problems_fig = px.histogram(
+            df, x="Sex", color="PreviousHeartProblems", barmode="group",
+            title="Previous Heart Problems by Gender", text_auto=True,
+            color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"}
+        )
+        previous_heart_problems_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        previous_heart_problems_html = previous_heart_problems_fig.to_html(full_html=False)
+
+        # Combine all HTML plots
+        combined_html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                    }}
+                    .chart-container {{
+                        margin: 20px auto;
+                        max-width: 900px;
+                    }}
+                </style>
+            </head>
+            <body>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+               <div style="flex: 1; min-width: 100px;">{heart_attack_html}</div>
+                <div style="flex: 1; min-width: 100px;">{smoking_html}</div>
+                <div style="flex: 1; min-width: 100px;">{alcohol_html}</div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1; min-width: 100px;">{diabetes_html}</div>
+                <div style="flex: 1; min-width: 100px;">{family_html}</div>
+                <div style="flex: 1; min-width: 100px;">{previous_heart_problems_html}</div>
+                </div>
+        
+                <div class="chart-container">{bmi_html}</div>
+                <div class="chart-container">{stress_html}</div>
+            </body>
+            </html>
+            """
+
+        # Save combined HTML to a file
+        with open("gender_analysis.html", "w", encoding="utf-8") as f:
+            f.write(combined_html)
+        return "gender_analysis.html"
+
+    def generate_smoking_analysis(self, df):
+        """
+           Generate HTML for visualizing features by patient gender.
+
+           :param df: Pandas DataFrame containing the patient data.
+           :return: Combined HTML containing multiple plots.
+           """
+        # Feature 1: BMI Distribution by Smoking
+        bmi_fig = px.box(df, x="Smoking", y="BMI", title="BMI Distribution by Smoking", color='Smoking')
+        bmi_fig.update_traces(marker=dict(color='#6A0DAD'),  # Deep purple boxes
+                              boxmean=True,  # Show mean line
+                              line_color='#6A0DAD',  # Purple border
+                              fillcolor='#8A2BE2',  # Slightly lighter fill
+                              jitter=0.3,  # Spread points for visibility
+                              whiskerwidth=0.8)
+        bmi_html = bmi_fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+        # Feature 2: Stress Level Distribution by Smoking
+        stress_fig = px.histogram(df, x="StressLevel", color="Smoking", barmode="group",
+                                  title="Stress Level Distribution by Smoking", facet_col="Smoking", text_auto=True, color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"})
+        stress_html = stress_fig.to_html(full_html=False)
+
+        # Feature 3: Heart Attack Risk by Smoking
+        heart_attack_fig = px.histogram(df, x="Smoking", color="HeartAttackRisk", barmode="group",
+                                        title="Heart Attack Risk by Smoking", text_auto=True,
+            color_discrete_map={1.0: "#6A0DAD", 0.0: "#5DADE2"})
+        heart_attack_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        heart_attack_html = heart_attack_fig.to_html(full_html=False)
+
+        # Feature 4: Smoking Habits by Smoking
+        smoking_fig = px.histogram(df, x="Smoking", color="Sex", barmode="group",
+                                   title="Smoking Habits by Gender", text_auto=True, color_discrete_map={"Male": "#6A0DAD", "Female": "#5DADE2"})
+        smoking_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        smoking_html = smoking_fig.to_html(full_html=False)
+
+        # Feature 5: Alcohol Consumption by Smoking
+        alcohol_fig = px.histogram(df, x="Smoking", color="AlcoholConsumption", barmode="group",
+                                   title="Alcohol Consumption by Smoking", text_auto=True, color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"})
+        alcohol_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        alcohol_html = alcohol_fig.to_html(full_html=False)
+
+        # Feature 6: Diabetes Habits by Smoking
+        diabetes_fig = px.histogram(df, x="Smoking", color="Diabetes", barmode="group",
+                                    title="Diabetes Distribution by Gender", text_auto=True, color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"})
+        diabetes_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        diabetes_html = diabetes_fig.to_html(full_html=False)
+
+        # Feature 7: FamilyHistory by Smoking
+        family_fig = px.histogram(df, x="Smoking", color="FamilyHistory", barmode="group",
+                                  title="Family History by Smoking", text_auto=True, color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"})
+        family_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        family_html = family_fig.to_html(full_html=False)
+        # Feature 8: PreviousHeartProblems by Gender
+        PreviousHeartProblems_fig = px.histogram(df, x="Smoking", color="PreviousHeartProblems", barmode="group",
+                                                 title="PreviousHeartProblems by Smoking", text_auto=True, color_discrete_map={"1": "#6A0DAD", "0": "#5DADE2"})
+        PreviousHeartProblems_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        PreviousHeartProblems_html = PreviousHeartProblems_fig.to_html(full_html=False)
+
+        # Combine all HTML plots
+        combined_html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                    }}
+                    .chart-container {{
+                        margin: 20px auto;
+                        max-width: 900px;
+                    }}
+                </style>
+            </head>
+            <body>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+               <div style="flex: 1; min-width: 100px;">{heart_attack_html}</div>
+                <div style="flex: 1; min-width: 100px;">{smoking_html}</div>
+                <div style="flex: 1; min-width: 100px;">{alcohol_html}</div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1; min-width: 100px;">{diabetes_html}</div>
+                <div style="flex: 1; min-width: 100px;">{family_html}</div>
+                <div style="flex: 1; min-width: 100px;">{PreviousHeartProblems_html}</div>
+                </div>
+
+                <div class="chart-container">{bmi_html}</div>
+                <div class="chart-container">{stress_html}</div>
+            </body>
+            </html>
+            """
+
+        # Save combined HTML to a file
+        with open("smoking_analysis.html", "w", encoding="utf-8") as f:
+            f.write(combined_html)
+        return "smoking_analysis.html"
+
+    def generate_familyhistory_analysis(self, df):
+        """
+           Generate HTML for visualizing features by patient familyhistory.
+
+           :param df: Pandas DataFrame containing the patient data.
+           :return: Combined HTML containing multiple plots.
+           """
+        # Feature 1: BMI Distribution by Gender
+        bmi_fig = px.box(df, x="FamilyHistory", y="BMI", title="BMI Distribution by FamilyHistory")
+        bmi_fig.update_traces(marker=dict(color='#6A0DAD'),  # Deep purple boxes
+                              boxmean=True,  # Show mean line
+                              line_color='#6A0DAD',  # Purple border
+                              fillcolor='#8A2BE2',  # Slightly lighter fill
+                              jitter=0.3,  # Spread points for visibility
+                              whiskerwidth=0.8)
+        bmi_html = bmi_fig.to_html(full_html=False, include_plotlyjs='cdn')
+
+        # Feature 2: Stress Level Distribution by FamilyHistory
+        stress_fig = px.histogram(df, x="StressLevel", color="FamilyHistory", barmode="group",
+                                  title="Stress Level Distribution by Gender", facet_col="FamilyHistory", text_auto=True,
+            color_discrete_map={'1': "#6A0DAD", '0': "#5DADE2"})
+        stress_html = stress_fig.to_html(full_html=False)
+
+        # Feature 3: Heart Attack Risk by FamilyHistory
+        heart_attack_fig = px.histogram(df, x="FamilyHistory", color="HeartAttackRisk", barmode="group",
+                                        title="Heart Attack Risk by FamilyHistory", text_auto=True,
+            color_discrete_map={1.0: "#6A0DAD", 0.0: "#5DADE2"})
+        heart_attack_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        heart_attack_html = heart_attack_fig.to_html(full_html=False)
+
+        # Feature 4: Smoking Habits by Gender
+        smoking_fig = px.histogram(df, x="FamilyHistory", color="Smoking", barmode="group",
+                                   title="FamilyHistory Habits by Smoking", text_auto=True,
+            color_discrete_map={'1': "#6A0DAD", '0': "#5DADE2"})
+        smoking_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        smoking_html = smoking_fig.to_html(full_html=False)
+
+        # Feature 5: Alcohol Consumption by Gender
+        alcohol_fig = px.histogram(df, x="FamilyHistory", color="AlcoholConsumption", barmode="group",
+                                   title="Alcohol Consumption by FamilyHistory", text_auto=True,color_discrete_map={'1': "#6A0DAD", '0': "#5DADE2"})
+        alcohol_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        alcohol_html = alcohol_fig.to_html(full_html=False)
+
+        # Feature 6: Diabetes Habits by Gender
+        diabetes_fig = px.histogram(df, x="FamilyHistory", color="Diabetes", barmode="group",
+                                    title="Diabetes Distribution by FamilyHistory", text_auto=True, color_discrete_map={'1': "#6A0DAD", '0': "#5DADE2"})
+        diabetes_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        diabetes_html = diabetes_fig.to_html(full_html=False)
+
+        # Feature 7: Gender by FamilyHistory
+        gender_fig = px.histogram(df, x="FamilyHistory", color="Sex", barmode="group",
+                                  title="Gender by FamilyHistory", text_auto=True,color_discrete_map={'Male': "#6A0DAD", 'Female': "#5DADE2"})
+        gender_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        gender_html = gender_fig.to_html(full_html=False)
+        # Feature 8: PreviousHeartProblems by FamilyHistory
+        PreviousHeartProblems_fig = px.histogram(df, x="FamilyHistory", color="PreviousHeartProblems", barmode="group",
+                                                 title="PreviousHeartProblems by FamilyHistory", text_auto=True, color_discrete_map={'1': "#6A0DAD", '0': "#5DADE2"})
+        PreviousHeartProblems_fig.update_layout(width=400, height=400, margin=dict(t=50, l=50, r=50, b=50))
+        PreviousHeartProblems_html = PreviousHeartProblems_fig.to_html(full_html=False)
+
+        # Combine all HTML plots
+        combined_html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                    }}
+                    .chart-container {{
+                        margin: 20px auto;
+                        max-width: 900px;
+                    }}
+                </style>
+            </head>
+            <body>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+               <div style="flex: 1; min-width: 100px;">{heart_attack_html}</div>
+                <div style="flex: 1; min-width: 100px;">{smoking_html}</div>
+                <div style="flex: 1; min-width: 100px;">{alcohol_html}</div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1; min-width: 100px;">{diabetes_html}</div>
+                <div style="flex: 1; min-width: 100px;">{gender_html}</div>
+                <div style="flex: 1; min-width: 100px;">{PreviousHeartProblems_html}</div>
+                </div>
+
+                <div class="chart-container">{bmi_html}</div>
+                <div class="chart-container">{stress_html}</div>
+            </body>
+            </html>
+            """
+
+        # Save combined HTML to a file
+        with open("familyhistory_analysis.html", "w", encoding="utf-8") as f:
+            f.write(combined_html)
+        return "familyhistory_analysis"
+
+
+    def plot_cholesterol_distribution(self, df):
+        """
+        Plots cholesterol distribution with users having heart attack risk in red and others in blue.
+
+        :param df: Pandas DataFrame containing 'Cholesterol' and 'HeartAttackRisk' columns.
+        """
+        # Ensure required columns are present
+        if 'Cholesterol' not in df.columns or 'HeartAttackRisk' not in df.columns:
+            raise ValueError("DataFrame must contain 'Cholesterol' and 'HeartAttackRisk' columns.")
+
+        # Plot the histogram
+        fig = px.histogram(
+            df,
+            x='Cholesterol',
+            color='HeartAttackRisk',
+            color_discrete_map={
+                0.0: '#5DADE2',  # Users without heart attack risk
+                1.0: '#6A0DAD'  # Users with heart attack risk
+            },
+            nbins=30,  # Adjust bin size as needed
+            title="Heart Attack Risk by Cholesterol Distribution",
+            labels={'Cholesterol': 'Cholesterol Levels', 'HeartAttackRisk': 'Heart Attack Risk'}
+        )
+
+
+        # Update layout for better visualization
+        fig.update_layout(
+            xaxis_title="Cholesterol Levels",
+            yaxis_title="Count",
+            legend_title="Heart Attack Risk",
+            height=500,
+            width=500,
+            margin=dict(t=50, l=50, r=50, b=50),
+            title_x=0.5
+        )
+        cholesterol_html = fig.to_html(full_html=False)
+
+
+        # Feature 2: Heart Attack Risk by Diabetes
+        Diabetes_fig = px.histogram(df, x="Diabetes", color="HeartAttackRisk", barmode="group",
+                                        title="Heart Attack Risk by Diabetes", text_auto=True, color_discrete_map={1.0: "#6A0DAD", 0.0: "#5DADE2"})
+        Diabetes_html = Diabetes_fig.to_html(full_html=False)
+
+        # Feature 3: Heart Attack Risk by AlcoholConsumption
+        AlcoholConsumption_fig = px.histogram(df, x="AlcoholConsumption", color="HeartAttackRisk", barmode="group",
+                                    title="Heart Attack Risk by AlcoholConsumption", text_auto=True, color_discrete_map={1.0: "#6A0DAD", 0.0: "#5DADE2"})
+        AlcoholConsumption_html = AlcoholConsumption_fig.to_html(full_html=False)
+
+        # Feature 3: Heart Attack Risk by BMI
+
+        # Plot the histogram
+        bmi_fig = px.histogram(
+            df,
+            x='BMI',
+            color='HeartAttackRisk',
+            color_discrete_map={
+                0.0: '#5DADE2',  # Users without heart attack risk
+                1.0: '#6A0DAD'  # Users with heart attack risk
+            },
+            nbins=30,  # Adjust bin size as needed
+            title="Heart Attack Risk by BMI Distribution",
+            labels={'BMI': 'BMI Values', 'HeartAttackRisk': 'Heart Attack Risk'}
+        )
+
+        # Update layout for better visualization
+        bmi_fig.update_layout(
+            xaxis_title="BMI Values",
+            yaxis_title="Count",
+            legend_title="Heart Attack Risk",
+            height=500,
+            width=500,
+            margin=dict(t=50, l=50, r=50, b=50),
+            title_x=0.5
+        )
+        bmi_html = bmi_fig.to_html(full_html=False)
+
+
+        # Combine all HTML plots
+        combined_html = f"""
+                    <html>
+                    <head>
+                        <style>
+                            body {{
+                                font-family: Arial, sans-serif;
+                                margin: 0;
+                                padding: 0;
+                            }}
+                            .chart-container {{
+                                margin: 20px auto;
+                                max-width: 900px;
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                    <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                       <div style="flex: 1; min-width: 100px;">{AlcoholConsumption_html}</div>
+                       <div style="flex: 1; min-width: 100px;">{Diabetes_html}</div>
+                       </div>
+                       <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                       <div style="flex: 1; min-width: 100px;">{cholesterol_html}</div>
+                       <div style="flex: 1; min-width: 100px;">{bmi_html}</div>
+                        </div>
+                    </body>
+                    </html>
+                    """
+
+        # Save combined HTML to a file
+        with open("cholesterol_analysis.html", "w", encoding="utf-8") as f:
+            f.write(combined_html)
+        return "cholesterol_analysis"
+
+
+
+    def generate_correlation_heatmap(self, df):
         try:
-            myDlg = QFileDialog.getOpenFileName(None, 'OpenFile', "", "Excel Files (*.xls *.xlsx *.csv)")
-            self.myPath = myDlg[0]  # Path + file + extension
-            FileNameWithExtension = QFileInfo(myDlg[0]).fileName()  # Just the file + extension
+            """
+            Generate a correlation heatmap for the given DataFrame.
+    
+            :param df: Pandas DataFrame containing the dataset.
+            :return: Path to the generated HTML file.
+            """
+            # Compute the correlation matrix
+            # Include only numeric columns, including binary columns
+            df['Sex'] = df['Sex'].apply(lambda x: 1 if x == 'Female' else 0)
 
-            if myDlg[0] == myDlg[1] == '':
-                # No file selected or cancel button clicked - so do nothing
-                pass
-            else:
-                # Read and extract values from Excel
-                try:
-                    self.data = pd.read_csv(self.myPath)
-                except:
-                    self.data = pd.read_excel(self.myPath)
+            df.Diet = df['Diet'].apply(lambda x: 0 if x == 'Unhealthy' else (1 if x == 'Average' else 2))
+            df.FamilyHistory = df.FamilyHistory.apply(lambda x: 1 if x == '1' else 0)  # check the dataset
+            df.Diabetes = df.Diabetes.apply(lambda x: 1 if x == '1' else 0)
+            df.AlcoholConsumption = df.AlcoholConsumption.apply(lambda x: 1 if x == '1' else 0)
 
-                # Change the text of the label to show the name of the file
-                self.ui.lblExcel.setText(FileNameWithExtension)
-                # Change the text of the second tab to show the path of the file
-                self.ui.tabWidget.setTabText(1, self.myPath)
-                # Extract headers of all columns and convert to a list
-                self.df = pd.DataFrame(self.data)
-                self.headers = self.df.columns.tolist()
-                print(self.headers)
-                # Add the list to all comboboxes
-                # self.ui.cbX.addItems(self.headers)
-                # self.ui.cbY.addItems(self.headers)
-                # self.ui.cbMap.addItem("")
-                # self.ui.cbMap.addItems(self.headers)
-                # Prepare the table that will contain the Excel
-                # Create N rows, N columns and add the headers
-                self.ui.tableWidget.setRowCount(self.df.shape[0])
-                self.ui.tableWidget.setColumnCount(self.df.shape[1])
-                self.ui.tableWidget.setHorizontalHeaderLabels(self.headers)
-                # A double loop to read the values and add them to the table
-                for row in self.df.iterrows():
-                    values = row[1]
-                    for col, value in enumerate(values):
-                        tableItem = QTableWidgetItem(str(value))
-                        self.ui.tableWidget.setItem(row[0], col, tableItem)
-                # Button to plot is now clickable
-                self.ui.pbPlot.setEnabled(True)
+            numeric_columns = df.select_dtypes(include=['number'])
+            numeric_columns = numeric_columns.drop(columns=['Diet', 'StressLevel', 'PhysicalActivityDaysPerWeek','SleepHoursPerDay', 'ExerciseHoursPerWeek'])
+            corr_matrix = numeric_columns.corr(numeric_only=True,method='spearman')
 
-        except IOError as e:
-            print("I/O error({0}): {1}".format(e.errno, e.strerror))
-            print(myDlg)
-        except ValueError:
-            print("Value Error.")
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-    def cbXvaluechanged(self):
-        X = self.ui.cbX.currentText()
+            # Create a heatmap using Plotly
+            heatmap_fig = go.Figure(
+                data=go.Heatmap(
+                    z=corr_matrix.values,
+                    x=corr_matrix.columns,
+                    y=corr_matrix.columns,
+                    text=corr_matrix.round(2).values,  # Add text labels (rounded to 2 decimal places)
+                    texttemplate="%{text}",  # Format the text
+                    textfont=dict(size=10),
+                    # colorscale="Bluered",
+                    zmin=-1,
+                    zmax=1,
+                    colorscale='Purples',
+                    colorbar=dict(title="Correlation"),
+                )
+            )
 
-        self.xmin = self.ui.sbXmin.setValue(self.data[X].min())
-        self.xmax = self.ui.sbXmax.setValue(self.data[X].max())
+            # Update layout
+            heatmap_fig.update_layout(
+                title="Correlation Heatmap",
+                xaxis_title="Features",
+                yaxis_title="Features",
+                height=600,
+                width=800,
+                margin=dict(t=50, l=50, r=50, b=50),
+                title_x=0.5
+            )
 
-    def cbYvaluechanged(self):
-        Y = self.ui.cbY.currentText()
+            # Save the plot to an HTML file
+            heatmap_html = heatmap_fig.to_html(full_html=True)
 
-        self.ymin = self.ui.sbYmin.setValue(self.data[Y].min())
-        self.ymax = self.ui.sbYmax.setValue(self.data[Y].max())
+            # Combine all HTML plots
+            combined_html = f"""
+                <html>
+                <head>
+                    <style>
+                        body {{
+                            font-family: Arial, sans-serif;
+                            margin: 0;
+                            padding: 0;
+                        }}
+                        .chart-container {{
+                            margin: 20px auto;
+                            max-width: 900px;
+                        }}
+                    </style>
+                </head>
+                <body>
+                            <div class="chart-container">{heatmap_html}</div>
+                         </body>
+                </html>
+                """
+
+            # Save combined HTML to a file
+            with open("correlation_analysis.html", "w", encoding="utf-8") as f:
+                f.write(combined_html)
+        except Exception as e:
+            print(e)
+        return combined_html
 
 
-    def plotExcelData(self):
-        global b_Canvas
+    def analyze_patient_data(self):
+        """
+        Combine data collection and analysis.
 
-        # Remove the previous plot
-        if b_Canvas == True:
-            self.rm_mpl()
+        :param db_path: Path to the SQLite database.
+        :param table_name: Table name containing patient data.
+        :return: Dictionary containing analysis results.
+        """
+        df = self.collect_data_from_database()
+        self.df = df
+        dashboard_html = self.generate_dashboard(df)
 
-        # Extract data and headers
-        data = self.data
-        X = self.ui.cbX.currentText()
-        Y = self.ui.cbY.currentText()
-        Cmap = self.ui.cbMap.currentText()
 
-        # Extract the values from the 4 boxes to use them for the double slicing
-        xmin = self.ui.sbXmin.value()
-        xmax = self.ui.sbXmax.value()
-        ymin = self.ui.sbYmin.value()
-        ymax = self.ui.sbYmax.value()
 
-        # Extract only the data respecting the 4 conditions
-        NewData = data.loc[(data[X] > xmin) & (data[X] < xmax) & (data[Y] > ymin) & (data[Y] < ymax)]
-        # It's one way, we could also use numpy, for example:
-        # np.where((np.array(data[X]) > xmin) & (np.array(data[X]) < xmax))
+        gender_html = self.generate_gender_analysis(df)
+        smoking_html = self.generate_smoking_analysis(df)
+        familyhistory_html = self.generate_familyhistory_analysis(df)
+        cholesterol_html = self.plot_cholesterol_distribution(df)
 
-        # Save new data in old data variable so we don't have to modify the plot part
-        data = NewData
+        # Create a QWebEngineView and set the HTML content
+        web_view = QWebEngineView()
+        web_view.setHtml(dashboard_html)
+        # Add QWebEngineView to the Overview tab layout
+        file_path = "C:/Users/user/OneDrive - UPEC/ProjectS1/dashboard.html"  # Replace with your file path
+        web_view.load(QUrl.fromLocalFile(file_path))
+        self.ui.layout_overview.addWidget(web_view)
 
-        # Prepare the plot
-        fig = Figure()
-        self.canvas = FigureCanvas(fig)
-        self.ui.verticalLayout.addWidget(self.canvas)
-        ax1f1 = fig.add_subplot(111)
-        # Reformat the coordinates near the toolbar to not show values like 2.425e+04 but 24250 for example
-        ax1f1.format_coord = lambda x, y: "x=%1.4f, y=%1.4f"%(x, y)
 
-        # If no cmap then will do a normal plot (X,Y)
-        if self.ui.cbMap.currentText() == "":
-            ax1f1.plot(data[X], data[Y], 'o', markersize=2)
-        elif self.ui.cbMap.currentText() == "Press":
-            # If selecting pressure, swap the colormap so high pressure is in red instead of blue
-            ax1f1.bar(data[X], data[Y], cmap='jet_r', c=data[Cmap])
-        else:
-            ax1f1.bar(data[X], data[Y], cmap='jet', c=data[Cmap])
+        # Create QWebEngineView to display the HTML
+        web_view2 = QWebEngineView()
+        web_view2.setHtml(gender_html)
+        web_view2.load(QUrl.fromLocalFile("C:/Users/user/OneDrive - UPEC/ProjectS1/gender_analysis.html"))
 
-        # Add a title for the figure and axis
-        ax1f1.set_title('Title')
-        ax1f1.set_xlabel("X", fontsize=14)
-        ax1f1.set_ylabel("Y", fontsize=14)
+        # Add the QWebEngineView to the tab layout
+        self.ui.layout_sex.addWidget(web_view2)
 
-        # If checkbox is checked, then Y axis is inverted
-        if self.ui.checkBox.isChecked():
-            ax1f1.invert_yaxis()
+        # Create QWebEngineView to display the HTML
+        web_view3 = QWebEngineView()
+        web_view3.setHtml(smoking_html)
+        web_view3.load(QUrl.fromLocalFile("C:/Users/user/OneDrive - UPEC/ProjectS1/smoking_analysis.html"))
 
-        # Draw everything and add toolbar
-        self.canvas.draw()
-        self.toolbar = NavigationToolbar(self.canvas, self.ui.mplwindow, coordinates=True)
-        self.ui.verticalLayout.addWidget(self.toolbar)
-        b_Canvas = True
+        # Add the QWebEngineView to the tab layout
+        self.ui.layout_Smoking.addWidget(web_view3)
+
+        # Create QWebEngineView to display the HTML
+        web_view4 = QWebEngineView()
+        web_view4.setHtml(familyhistory_html)
+        web_view4.load(QUrl.fromLocalFile("C:/Users/user/OneDrive - UPEC/ProjectS1/familyhistory_analysis.html"))
+
+        # Add the QWebEngineView to the tab layout
+        self.ui.layout_Family.addWidget(web_view4)
+
+        # Create QWebEngineView to display the HTML
+        web_view5 = QWebEngineView()
+        web_view5.setHtml(cholesterol_html)
+        web_view5.load(QUrl.fromLocalFile("C:/Users/user/OneDrive - UPEC/ProjectS1/cholesterol_analysis.html"))
+
+        # Add the QWebEngineView to the tab layout
+        self.ui.layout_risk_factors.addWidget(web_view5)
+
+        # Generate the correlation heatmap
+        variables = ["BMI", "HeartAttackRisk", "ExerciseHoursPerWeek", "Cholesterol", "Triglycerides", "Smoking", "Diabetes", "FamilyHistory"]
+
+        # self.populate_correlation_dropdown(df)
+        heatmap_file = self.generate_correlation_heatmap(df)
+
+
+
+        # Create QWebEngineViews for the plots
+
+        heatmap_view = QWebEngineView()
+        heatmap_view.setHtml(heatmap_file)
+        heatmap_view.load(QUrl.fromLocalFile("C:/Users/user/OneDrive - UPEC/ProjectS1/correlation_analysis.html"))
+
+
+        # Add the views to the tab layout
+        self.ui.layout_correlation.addWidget(heatmap_view)
 
     def rm_mpl(self):
         global b_Canvas
@@ -1454,6 +2262,8 @@ if __name__ == '__main__':
         QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
         QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
+
 
     window = MyMainWindow()
     window.show()
