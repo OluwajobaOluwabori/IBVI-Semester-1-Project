@@ -63,12 +63,10 @@ This project consists of:
 
 📦 ECG-Health-Image-Analysis  
 │── 📂 data/                  # ECG & medical image datasets  
-│── 📂 database/              # SQL scripts and patient database  
-│── 📂 gui/                   # PyQt ECG and Image Processing UI  
+│── 📂 database/              # SQL scripts and patient database    
 │── 📂 plots/                 # Plotly Dash visualizations  
-│── 📜 main.py                # Entry point for ECG Analysis GUI  
-│── 📜 dashboard.py           # Plotly Dash dashboard  
-│── 📜 image_processing.py     # Image Processing GUI  
+│── 📜 main.py                # Entry point for ECG Analysis GUI   
+│── 📜 ProjectS1v1GUI.py      # GUI  
 │── 📜 requirements.txt       # Required dependencies  
 │── 📜 README.md              # Project documentation  
 
